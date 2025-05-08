@@ -17,6 +17,12 @@ import src.asr as asr
 import src.profiling as profiling
 import src.calstat as calstat
 
+try:
+    import cupy
+    CUPY_AVAILABLE = True
+except ImportError:
+    CUPY_AVAILABLE = False
+
 def main():
 
     parent_parser = argparse.ArgumentParser(
@@ -77,8 +83,9 @@ def main():
     profiling_parser.add_argument('-t', '--tree')
     profiling_parser.add_argument('-c', '--cores', type=int, default=1)
     profiling_parser.add_argument('--ignore_branch', action='store_true', default=False)
-    profiling_parser.add_argument('--gpu', action='store_true', default=False)
-    profiling_parser.add_argument('-nb', '--num_blocks', type=int, default=0)
+    if CUPY_AVAILABLE:
+        profiling_parser.add_argument('--gpu', action='store_true', default=False)
+        profiling_parser.add_argument('-nb', '--num_blocks', type=int, default=0)
     profiling_parser.add_argument('--test', type=int, default=0)
     
     stat_parser = new_subparser(subparsers, 'stat', stat_description)
@@ -141,6 +148,9 @@ def main():
         
     
     elif args.subparser_name == 'profiling':
+        if not CUPY_AVAILABLE:
+            args.gpu = False
+            args.num_blocks = 0
     
         if args.method == 'naive' and not args.og_table:
             print('An ortholog table is required when using naive method',

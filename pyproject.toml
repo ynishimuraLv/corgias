@@ -5,13 +5,15 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "cupy-cuda12x>=13.4.1",
     "ete3",
     "pastml",
     "polars>=1.26.0",
     "pyarrow>=19.0.1",
     "statsmodels>=0.14.4",
 ]
+
+[project.optional-dependencies]
+gpu = ["cupy-cuda12x>=13.4.1"]
 
 [build-system]
 requires = ["hatchling"]

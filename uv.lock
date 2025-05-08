@@ -114,11 +114,10 @@ wheels = [
 ]
 
 [[package]]
-name = "corgias2"
+name = "corgias"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "cupy-cuda12x" },
     { name = "ete3" },
     { name = "pastml" },
     { name = "polars" },
@@ -126,15 +125,21 @@ dependencies = [
     { name = "statsmodels" },
 ]
 
+[package.optional-dependencies]
+gpu = [
+    { name = "cupy-cuda12x" },
+]
+
 [package.metadata]
 requires-dist = [
-    { name = "cupy-cuda12x", specifier = ">=13.4.1" },
+    { name = "cupy-cuda12x", marker = "extra == 'gpu'", specifier = ">=13.4.1" },
     { name = "ete3" },
     { name = "pastml" },
     { name = "polars", specifier = ">=1.26.0" },
     { name = "pyarrow", specifier = ">=19.0.1" },
     { name = "statsmodels", specifier = ">=0.14.4" },
 ]
+provides-extras = ["gpu"]
 
 [[package]]
 name = "cupy-cuda12x"

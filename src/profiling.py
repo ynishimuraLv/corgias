@@ -3,7 +3,7 @@ import os
 import sys
 from numpy.typing import NDArray
 import numpy as np
-import cupy as cp
+
 import pandas as pd
 import polars as pl
 from multiprocessing import Pool
@@ -11,6 +11,12 @@ from collections import Counter
 from itertools import groupby
 from itertools import combinations
 import ete3 as et
+
+try:
+    import cupy as cp
+    CUPY_AVAILABLE = True
+except ImportError:
+    CUPY_AVAILABLE = False
 
 
 def gene_count(genes: str) -> int:
@@ -87,22 +93,22 @@ def naive_cpu(df: pd.DataFrame, cores: int) -> tuple[int, int, int, int]:
 
     return tt, tf, ft, ff
 
+if CUPY_AVAILABLE:
+    def block_dot(df1: cp.ndarray, df2: cp.ndarray, block_size: int):
+        M, K = df1.shape
+        _, N = df2.shape
+        result = np.zeros((M, N), dtype=np.int32)
+        for i in range(0, M, block_size):
+            for j in range(0, N, block_size):
+                block_C = cp.zeros((block_size, block_size), dtype=cp.int32)
+                for k in range(0, K, block_size):
+                    block_C += cp.dot(
+                        cp.asarray(df1[i:i+block_size, k:k+block_size], dtype=cp.int32),
+                        cp.asarray(df2[k:k+block_size, j:j+block_size], dtype=cp.int32)
+                    )
+                result[i:i+block_size, j:j+block_size] += cp.asnumpy(block_C)
 
-def block_dot(df1: cp.ndarray, df2: cp.ndarray, block_size: int):
-    M, K = df1.shape
-    _, N = df2.shape
-    result = np.zeros((M, N), dtype=np.int32)
-    for i in range(0, M, block_size):
-        for j in range(0, N, block_size):
-            block_C = cp.zeros((block_size, block_size), dtype=cp.int32)
-            for k in range(0, K, block_size):
-                block_C += cp.dot(
-                    cp.asarray(df1[i:i+block_size, k:k+block_size], dtype=cp.int32),
-                    cp.asarray(df2[k:k+block_size, j:j+block_size], dtype=cp.int32)
-                )
-            result[i:i+block_size, j:j+block_size] += cp.asnumpy(block_C)
-
-    return result
+        return result
 
 
 def naivecount2matrix(tt: NDArray[np.int64], tf: NDArray[np.int64],

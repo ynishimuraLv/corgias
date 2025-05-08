@@ -15,13 +15,26 @@ CORGIAS is a phylogenetic profiling tool for a large-scale dataset comprising of
 
 Corgias can be installed on Linux system.
 
-```bash
-git clone https://github.com/XXXX
-cd corgias
+### Download
 
-# Optional, but recommended to install in the virtual environment
+```bash
+git clone https://github.com/ynishimuraLv/corgias.git
+cd corgias
+```
+
+### Create the virtual environment (Optional, but recommended)
+``` bash
 python -m venv .venv
 . .venv/bin/activate
+```
+
+### For System with GPU compatible CUDA 12.x
+```bash
+python -m pip install .[gpu]
+```
+
+### For system without a compatible GPU (CPU-only)
+```bash
 python -m pip install .
 ```
 
