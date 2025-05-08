@@ -18,9 +18,11 @@ Corgias can be installed on Linux system.
 ```bash
 git clone https://github.com/XXXX
 cd corgias
-python3.10 -m venv .venv
+
+# Optional, but recommended to install in the virtual environment
+python -m venv .venv
 . .venv/bin/activate
-python3.10 -m pip install .
+python -m pip install .
 ```
 
 ## Usage
@@ -131,10 +133,10 @@ If you use CORGIAS in your research, please cite it as follows:
 
 ```
 Yuki Nishimura, Kimiho Omae, Kento Tominnaga, Wataru Iwasaki.
-CORGIAS: A Python Package for Bioinformatics Research
+CORGIAS: identifying correlated gene pairs by considering evolutionary history in a large-scale prokaryotic genome dataset
 [Journal Name], 2025, [DOI]
 ```
 
 ## Contact
 
-For questions, support, or collaboration inquiries, please contact [Your Name] at [Your Email].
+Yuki Nishimura (The University of Tokyo) yuki-nishimura@g.ecc.u-tokyo.ac.jp
