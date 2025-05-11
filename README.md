@@ -33,7 +33,7 @@ python -m venv .venv
 python -m pip install .[gpu]
 ```
 
-### For system without a compatible GPU (CPU-only)
+### For System without a compatible GPU (CPU-only)
 ```bash
 python -m pip install .
 ```
@@ -147,7 +147,7 @@ If you use CORGIAS in your research, please cite it as follows:
 ```
 Yuki Nishimura, Kimiho Omae, Kento Tominnaga, Wataru Iwasaki.
 CORGIAS: identifying correlated gene pairs by considering evolutionary history in a large-scale prokaryotic genome dataset
-[Journal Name], 2025, [DOI]
+bioRxiv, 2025, https://doi.org/10.1101/2025.05.07.652372
 ```
 
 ## Contact
