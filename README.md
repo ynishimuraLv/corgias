@@ -53,7 +53,7 @@ usage: corgias asr [-h] -t TREE -d DATA [-i ID_INDEX] [-s SEPARATOR] --work_dir 
 	Prepare trees with ancestral presence/absence states of ortholog for ASA or SEV profiling.
 	The ortholog table should be a CSV-like file but each ortholog is assmued to be evolved independently.
 	Example usage:
-		corgias asr -t tree.nwk -d orthologs.csv -i 0 -s "," -o pastml_result -c 4 --predictio_method ML
+		corgias asr -t tree.nwk -d orthologs.csv -i 0 -s "," -o pastml_result -c 4 --prediction_method ML
 
 	Note: Recostruction should be performed by a maximum-likelihood (DOWNPASS) and maximum-parsimony method (ACCTRAN)
 	      for ASA and SEV, respectively.
@@ -149,6 +149,8 @@ Yuki Nishimura, Kimiho Omae, Kento Tominnaga, Wataru Iwasaki.
 CORGIAS: identifying correlated gene pairs by considering evolutionary history in a large-scale prokaryotic genome dataset
 bioRxiv, 2025, https://doi.org/10.1101/2025.05.07.652372
 ```
+
+The results in this paper can be reproduced by using the code [here](https://github.com/ynishimuraLv/CORGIAS_data.git)
 
 ## Contact
 

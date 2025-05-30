@@ -47,7 +47,7 @@ def main():
     asr_description = '\tPrepare trees with ancestral presence/absence states of ortholog for ASA or SEV profiling. \n' \
         '\tThe ortholog table should be a CSV-like file but each ortholog is assmued to be evolved independently. \n' \
         '\tExample usage:\n' \
-        '\t\tcorgias asr -t tree.nwk -d orthologs.csv -i 0 -s "," -o pastml_result -c 4 --predictio_method ML\n\n'\
+        '\t\tcorgias asr -t tree.nwk -d orthologs.csv -i 0 -s "," -o pastml_result -c 4 --prediction_method ML\n\n'\
         '\tNote: Recostruction should be performed by a maximum-likelihood (DOWNPASS) and maximum-parsimony method (ACCTRAN)\n' \
         '\t      for ASA and SEV, respectively.\n'
     profiling_description = '\tPerform phylogenetic profiling using a ortholog table (naive, rle, cwa, cotr)\n' \

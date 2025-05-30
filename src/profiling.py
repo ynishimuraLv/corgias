@@ -337,10 +337,10 @@ def transition_count2df(k: NDArray[np.int64], num_transition: int, og_names: lis
              og_names, left_on='column_1', right_on='index'
              ).rename({'OG':'OG2'}).join(
              num_transition, left_on='column_0', right_on='index'
-             ).rename({'num_transition':'num_transition1'}).join(
+             ).rename({'num_transition':'num_change1'}).join(
              num_transition, left_on='column_1', right_on='index'
-             ).rename({'num_transition':'num_transition2'}).select(
-             ['OG1', 'OG2', 'num_transition1', 'num_transition2']
+             ).rename({'num_transition':'num_change2'}).select(
+             ['OG1', 'OG2', 'num_change1', 'num_change2']
              )
     k = uppermatrix2vector(k)
     k = pl.DataFrame({'k':k})
