@@ -1,16 +1,13 @@
 #!/usr/bin/env python
-import os
-import sys
-from numpy.typing import NDArray
-import numpy as np
+from collections import Counter
+from itertools import combinations, groupby
+from multiprocessing import Pool
 
+import ete3 as et
+import numpy as np
 import pandas as pd
 import polars as pl
-from multiprocessing import Pool
-from collections import Counter
-from itertools import groupby
-from itertools import combinations
-import ete3 as et
+from numpy.typing import NDArray
 
 try:
     import cupy as cp
@@ -44,7 +41,7 @@ def run_naive(df: pd.DataFrame, gpu: bool, num_blocks: int, cores: int):
         tt, tf, ft, ff = naive_cpu(df, cores)
     og_names = list(df.columns)
     result = naivecount2matrix(tt, tf, ft, ff, og_names)
-    
+
     return result
 
 
@@ -157,6 +154,9 @@ class RLE_CWA:
         self.method = method
         self.tree = tree
         self.cores = cores
+        if methods == 'rle':
+            order = [ leaf.name for leaf in self.tree.get_leaves() ]
+            self.df = self.df.loc[order]
 
 
     def rle(self, og1: str, og2: str
@@ -183,7 +183,7 @@ class RLE_CWA:
         z = self.convert2traits(og1, og2)
         for leaf in self.tree.get_leaves():
             leaf.trait = str(z[leaf.name])
-            
+
         remove = set()
         for node in self.tree.traverse(strategy='postorder'):
             if not node.is_leaf():
@@ -213,7 +213,7 @@ class RLE_CWA:
 
         with Pool(processes=self.cores) as process:
             result = process.starmap_async(run_method, pairs).get()
-            
+
         return result
 
 
@@ -319,7 +319,7 @@ def run_transition(count, gpu: bool, num_blocks: int, N: int):
     num_transition = np.vstack([ sublist[2] for sublist in count ])
     k = calculate_k(t_matrix, gpu, num_blocks)
     result = transition_count2df(k, num_transition, og_names, N)
-    
+
     return result
 
 
@@ -376,7 +376,7 @@ def calculate_k(t_matrix: pl.DataFrame, gpu: bool = False,
                 num_blocks: int = 0) -> NDArray[np.int64]:
     if gpu:
         if num_blocks == 0:
-            
+
             df = cp.asarray(t_matrix, dtype=cp.int16)
             df_T = cp.asarray(t_matrix.transpose(), dtype=cp.int16)
             k = cp.asnumpy(cp.dot(df, df_T))
