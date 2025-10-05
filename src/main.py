@@ -66,6 +66,9 @@ def main():
 
     asr_parser = new_subparser(subparsers, 'asr', asr_description)
     asr_parser.add_argument('-t', '--tree', required=True)
+    asr_parser.add_argument('-m', '--prediction_method', choices=['MPPA','MAP','JOINT','DOWNPASS','ACCTRAN',
+                                                                  'DELTRAN', 'ML', 'MP'],
+                            default='ML')
     asr_parser.add_argument('-d', '--data', required=True)
     asr_parser.add_argument('-i', '--id_index', default=0, type=int)
     asr_parser.add_argument('-s', '--separator', default=',')
@@ -132,7 +135,7 @@ def main():
             df.loc[:, col].to_csv(file)
             jobs.append((file, ))
         
-        asr_runner = asr.PastMLRunner(args.tree, args.separator, args.work_dir, args.cores)
+        asr_runner = asr.PastMLRunner(args.tree, args.prediction_method, args.separator, args.work_dir, args.cores)
         asr_runner.set_pastml_command(options)
         firstfile = jobs[0][0]
         returncode, _, _ = asr_runner.run_pastml(firstfile)

@@ -64,6 +64,7 @@ usage: corgias asr [-h] -t TREE -d DATA [-i ID_INDEX] [-s SEPARATOR] --work_dir 
 |-------------------------|-----------------------------------------------------------------------------|
 | `-h, --help`            | Show the help message and exit.                                            |
 | `-t, --tree TREE`       | Path to the species tree file (Newick format).                             |
+| `-m, --prediction_method METHOD`       | Method for ASR.                             |
 | `-d, --data DATA`       | Path to the ortholog table file (CSV or CSV-like format).                              |
 | `-i, --id_index ID_INDEX` | Column index for ortholog IDs (0-based).                                 |
 | `-s, --separator SEPARATOR` | Separator for the ortholog table (default:  `,`).                      |
@@ -73,7 +74,7 @@ usage: corgias asr [-h] -t TREE -d DATA [-i ID_INDEX] [-s SEPARATOR] --work_dir 
 | `--tmp TMP`             | Temporary directory for intermediate files.                               |
 | `--keep`                | Keep intermediate files.                                                  |
 
-**Note**: Recostruction should be performed by a maximum-likelihood (DOWNPASS) and maximum-parsimony method (ACCTRAN) for ASA and SEV, respectively.
+**Note**: Reconstruction should be performed by a maximum-likelihood (DOWNPASS) and maximum-parsimony method (ACCTRAN) for ASA and SEV, respectively. Therefore, ML and MP are replaced with DOWNPASS and ACCTRAN.
 In addition to the above, `pastml` options can be acceptable (for example, `--upload_to_itol`).
 
 ### Phylogenetic profiling
