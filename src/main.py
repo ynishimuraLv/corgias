@@ -67,7 +67,7 @@ def main():
     asr_parser = new_subparser(subparsers, 'asr', asr_description)
     asr_parser.add_argument('-t', '--tree', required=True)
     asr_parser.add_argument('-d', '--data', required=True)
-    asr_parser.add_argument('-i', '--id_index', default=0)
+    asr_parser.add_argument('-i', '--id_index', default=0, type=int)
     asr_parser.add_argument('-s', '--separator', default=',')
     asr_parser.add_argument('--work_dir', required=True)
     asr_parser.add_argument('-c', '--cores', default=1)
@@ -108,7 +108,7 @@ def main():
     
     if args.subparser_name == 'asr':
         df = pl.read_csv(args.data, separator=args.separator).to_pandas()
-        index_col = df.columns[args.id_index]
+        index_col = df.columns[int(args.id_index)]
         df.set_index(index_col, inplace=True)
         df_type_check = df.dtypes.apply(pd.api.types.is_integer_dtype).all()
         if not df_type_check:
@@ -116,7 +116,7 @@ def main():
         else:
             df = df.where(df == 0, 1)
             if args.test:
-                df = df.iloc[:, :args.test]
+                df = df.iloc[:, :int(args.test)]
         
         if not args.tmp:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -134,13 +134,17 @@ def main():
         
         asr_runner = asr.PastMLRunner(args.tree, args.separator, args.work_dir, args.cores)
         asr_runner.set_pastml_command(options)
-        
-        returncode, _, _ = asr_runner.run_pastml(jobs.pop(0)[0])
+        firstfile = jobs[0][0]
+        returncode, _, _ = asr_runner.run_pastml(firstfile)
         
         if returncode != 0:
             if not args.keep:
                 shutil.rmtree(tmpdir)
-            sys.exit('Something went wrong with pastml. See options by pastml --help')
+            print('Something went wrong with pastml. See options by pastml --help')
+            sys.exit(f'''
+                     Your command was interpreted as:
+                     {asr_runner.command + ['-d', firstfile]}
+                     ''')
             
         asr_runner.run_parallel(jobs)
         if not args.keep:

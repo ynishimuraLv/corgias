@@ -11,7 +11,6 @@ class PastMLRunner:
         self.cores = int(cores)
         self.command = ['pastml']
         
-        
     def set_pastml_command(self, options: list[str]):
         self.command += ['-t', self.tree, '-s', self.separator] + options
     
