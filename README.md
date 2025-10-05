@@ -40,11 +40,14 @@ python -m pip install .
 
 ## Usage
 
-CORGIAS provides three subcommand. `profiling` calculate values necessary for evaluating correlation of all ortholog pairs. Two our new profiling methods, Ancestral steate adjustment (ASA) and Simultaneous Evolutionary Test (SEV) requre the ancestral state of orthologs and `asr` prepared them. `stat` performs statistical tests using values calculated by `profiling`.
+CORGIAS provides three subcommand.
+1. **`profiling`** calculate values necessary for evaluating correlation of all ortholog pairs. Two our new profiling methods.
+2. **`asr`** performs ancestral state of ortholog presence/absence for Ancestral steate adjustment (ASA) and Simultaneous Evolutionary Test (SEV).
+3. **`stat`** performs statistical tests using values calculated by `profiling`.
 
 ### Ancestral state construction (ASR)
 
-Subcommand `asr` needs a rooted species tree in newick format and ortholog table in csv or csv-like format (separator can be sepcified with -s/--separator option). This is just a wrapper conductiong `pastml` parallely.
+`asr` reuqires a rooted species tree in Newick format and an ortholog table in CSV or CSV-like format (separator can be sepcified with `-s/--separator` option). This subcommand acts as a wrapper for running  `pastml` in parallel.
 
 ```
 $corgias asr -h
@@ -54,87 +57,98 @@ usage: corgias asr [-h] -t TREE -d DATA [-i ID_INDEX] [-s SEPARATOR] --work_dir 
 	The ortholog table should be a CSV-like file but each ortholog is assmued to be evolved independently.
 	Example usage:
 		corgias asr -t tree.nwk -d orthologs.csv -i 0 -s "," -o pastml_result -c 4 --prediction_method ML
-
-	Note: Recostruction should be performed by a maximum-likelihood (DOWNPASS) and maximum-parsimony method (ACCTRAN)
-	      for ASA and SEV, respectively.
-
-options:
-  -h, --help            show this help message and exit
-  -t TREE, --tree TREE
-  -d DATA, --data DATA
-  -i ID_INDEX, --id_index ID_INDEX
-  -s SEPARATOR, --separator SEPARATOR
-  --work_dir WORK_DIR
-  -c CORES, --cores CORES
-  --test TEST
-  --tmp TMP
-  --keep
 ```
 
+#### Options
+| Option                  | Description                                                                 |
+|-------------------------|-----------------------------------------------------------------------------|
+| `-h, --help`            | Show the help message and exit.                                            |
+| `-t, --tree TREE`       | Path to the species tree file (Newick format).                             |
+| `-d, --data DATA`       | Path to the ortholog table file (CSV or CSV-like format).                              |
+| `-i, --id_index ID_INDEX` | Column index for ortholog IDs (0-based).                                 |
+| `-s, --separator SEPARATOR` | Separator for the ortholog table (default:  `,`).                          |
+| `--work_dir WORK_DIR`   | Directory for output files.                                                |
+| `-c, --cores CORES`     | Number of CPU cores to use.                                                |
+| `--test TEST`           | Number of orthologs to process in test mode.                               |
+| `--tmp TMP`             | Temporary directory for intermediate files.                               |
+| `--keep`                | Keep intermediate files.                                                  |
+| `--prediction_method`   | Method to                                            |
+
+**Note**: Recostruction should be performed by a maximum-likelihood (DOWNPASS) and maximum-parsimony method (ACCTRAN) for ASA and SEV, respectively.
 In addition to the above, `pastml` options can be acceptable (for example, `--upload_to_itol`).
 
 ### Phylogenetic profiling
-Six phylogenetic profiling mehtods, naive, run length encoding (rle), cladewise adjustment (cwa), ansestral state adjustment (asa), cotransitions (cotr), simultanous evolution test (SEV) are available in subcommand `profiling`. Required input files vary by the methods<br>
-**naive**: a ortholog table in csv format. <br>
-**rle, cwa, cotr**: a ortholog table in csv format and a rooted species tree in newick format. <br>
-**asa, sev**: A resultant folder of `asr` and a rooted species tree in newick format.<br><br>
+
+The `profiling` subcommand supports six methods:
+
+1. **naive**
+2. **run length encoding (rle)**
+3. **cladewise adjustment (cwa)**
+4. **ancestral state adjustment (asa)**
+5. **cotransitions (cotr)**
+6. **simultaneous evolution test (SEV)**
+
+| Method | Required Inputs                                                                 |
+|--------|---------------------------------------------------------------------------------|
+| `naive` | Ortholog table (CSV format).                                                  |
+| `rle`, `cwa`, `cotr` | Ortholog table (CSV format) and rooted species tree (Newick format). |
+| `asa`, `sev` | Output folder from `asr` and rooted species tree (Newick format).        |
 
 It is highly recommended to run with `--test` with a small number before running with a large dataset.
-```
+```bash
 $corgias profiling -h
-usage: corgias profiling [-h] -m {naive,rle,cwa,asa,cotr,sev} [-og OG_TABLE] [-a ASR_FOLDER] -o OUTPUT [-t TREE] [-c CORES] [--ignore_branch] [--gpu]
-                         [-nb NUM_BLOCKS] [--test TEST]
+usage: corgias profiling [-h] -m {naive,rle,cwa,asa,cotr,sev} [-og OG_TABLE] [-a ASR_FOLDER] -o OUTPUT [-t TREE] [-c CORES] [--ignore_branch] [--gpu]  [-nb NUM_BLOCKS] [--test TEST]
 
 	Perform phylogenetic profiling using a ortholog table (naive, rle, cwa, cotr)
 	a species tree (rle, cwa, cotr) and/or, ancestral state reconstruction results (asa, sev)
-	Example usages: 
+	Example usages:
 		corgias profiling -m naive -og orthologs.csv -o naive_out.csv -c -4 --gpu -nb 4
-		corgias profiling -m rle -og orthologs.csv -t tree.nwk -o rle_out.csv -c 4 
-		corgias profiling -m cwa -og orthologs.csv -t tree.nwk -o cwa_out.csv -c 4 
-		corgias profiling -m asa -a pastml_result_folder -t tree.nwk -o asa_out.csv -c 4 
-		corgias profiling -m cotr -og orthologs.csv -t tree.nwk -o cotr_out.csv -c 4 
-		corgias profiling -m sev --a pastml_result_folder -t tree.nwk -o sev_out.csv -c 4 
+		corgias profiling -m rle -og orthologs.csv -t tree.nwk -o rle_out.csv -c 4
+		corgias profiling -m cwa -og orthologs.csv -t tree.nwk -o cwa_out.csv -c 4
+		corgias profiling -m asa -a pastml_result_folder -t tree.nwk -o asa_out.csv -c 4
+		corgias profiling -m cotr -og orthologs.csv -t tree.nwk -o cotr_out.csv -c 4
+		corgias profiling -m sev --a pastml_result_folder -t tree.nwk -o sev_out.csv -c 4
 
-	Note: with --test 5, Run test will start using five orthologs. 
-
-options:
-  -h, --help            show this help message and exit
-  -m {naive,rle,cwa,asa,cotr,sev}, --method {naive,rle,cwa,asa,cotr,sev}
-  -og OG_TABLE, --og_table OG_TABLE
-  -a ASR_FOLDER, --asr_folder ASR_FOLDER
-  -o OUTPUT, --output OUTPUT
-  -t TREE, --tree TREE
-  -c CORES, --cores CORES
-  --ignore_branch
-  --gpu
-  -nb NUM_BLOCKS, --num_blocks NUM_BLOCKS
-  --test TEST
-
+  Note: with --test 5, Run test will start using five orthologs.
 ```
-
+#### Options
+| Option                  | Description                                                                 |
+|-------------------------|-----------------------------------------------------------------------------|
+| `-h, --help`            | Show the help message and exit.                                            |
+| `-m, --method {naive,rle,cwa,asa,cotr,sev}` | Profiling method to use.                              |
+| `-og, --og_table OG_TABLE` | Path to the ortholog table file (CSV format).                           |
+| `-a, --asr_folder ASR_FOLDER` | Path to the `asr` output folder.                                     |
+| `-o, --output OUTPUT`   | Output file name.                                                          |
+| `-t, --tree TREE`       | Path to the species tree file (Newick format).                             |
+| `-c, --cores CORES`     | Number of CPU cores to use.                                                |
+| `--ignore_branch`       | Ignore branch lengths in the tree.                                         |
+| `--gpu`                 | Use GPU for computation.                                                  |
+| `-nb, --num_blocks NUM_BLOCKS` | Number of blocks for GPU computation.                               |
+| `--test TEST`           | Number of orthologs to process in test mode.
 
 
 ### Statictical test
-`stat` only requires the file generated by `profiling` as input.
+The `stat` subcommand performs statistical tests on the results generated by `profiling`.
 ```
-corgias stat [-h] -i INPUT -m {naive,rle,cwa,asa,cotr,sev} [-o OUTPUT] [-d {both,correlation,anti-correlation}] [-c CORES] [-t THRETHOLD]
-                    [-s {bonferroni,sidak,holm-sidak,simes-hochberg,hommel,fdr_bh,fdr_by,fdr_tsbh,fdr_tsbky}] [--only_signif]
+corgias stat [-h] -i INPUT -m {naive,rle,cwa,asa,cotr,sev} [-o OUTPUT] [-d {both,correlation,anti-correlation}] [-c CORES] [-t THRETHOLD] [-s {bonferroni,sidak,holm-sidak,simes-hochberg,hommel,fdr_bh,fdr_by,fdr_tsbh,fdr_tsbky}] [--only_signif]
 
 	Conduct statistical tests for phylogenetic profiling results.
 	Example usage:
-		corgias stat -i profiling_result.csv -m naive -o stat_out.csv -c 4 
-
-options:
-  -h, --help            show this help message and exit
-  -i INPUT, --input INPUT
-  -m {naive,rle,cwa,asa,cotr,sev}, --method {naive,rle,cwa,asa,cotr,sev}
-  -o OUTPUT, --output OUTPUT
-  -d {both,correlation,anti-correlation}, --direction {both,correlation,anti-correlation}
-  -c CORES, --cores CORES
-  -t THRETHOLD, --threthold THRETHOLD
-  -s {bonferroni,sidak,holm-sidak,simes-hochberg,hommel,fdr_bh,fdr_by,fdr_tsbh,fdr_tsbky}, --statistical_test {bonferroni,sidak,holm-sidak,simes-hochberg,hommel,fdr_bh,fdr_by,fdr_tsbh,fdr_tsbky}
-  --only_signif
+		corgias stat -i profiling_result.csv -m naive -o stat_out.csv -c 4
 ```
+#### Options
+
+| Option                  | Description                                                                 |
+|-------------------------|-----------------------------------------------------------------------------|
+| `-h, --help`            | Show the help message and exit.                                            |
+| `-i, --input INPUT`     | Input file generated by `profiling`.                                       |
+| `-m, --method {naive,rle,cwa,asa,cotr,sev}` | Profiling method used.                                |
+| `-o, --output OUTPUT`   | Output file name.                                                          |
+| `-d, --direction {both,correlation,anti-correlation}` | Direction of correlation to test.            |
+| `-c, --cores CORES`     | Number of CPU cores to use.                                                |
+| `-t, --threthold THRETHOLD` | Significance threshold.                                                |
+| `-s, --statistical_test {bonferroni,sidak,holm-sidak,simes-hochberg,hommel,fdr_bh,fdr_by,fdr_tsbh,fdr_tsbky}` | Statistical test method. |
+| `--only_signif`         | Output only significant results.
 
 ## License
 
@@ -142,7 +156,7 @@ This project is licensed under the GPL3.0 License. See the `LICENSE` file for de
 
 ## Citation
 
-If you use CORGIAS in your research, please cite it as follows:
+If you use CORGIAS in your research, please the paper below:
 
 ```
 Yuki Nishimura, Kimiho Omae, Kento Tominnaga, Wataru Iwasaki.
