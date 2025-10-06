@@ -74,7 +74,7 @@ usage: corgias asr [-h] -t TREE -d DATA [-i ID_INDEX] [-s SEPARATOR] --work_dir 
 | `--tmp TMP`             | Temporary directory for intermediate files.                               |
 | `--keep`                | Keep intermediate files.                                                  |
 
-**Note**: Reconstruction should be performed by a maximum-likelihood (DOWNPASS) and maximum-parsimony method (ACCTRAN) for ASA and SEV, respectively. Therefore, ML and MP are replaced with DOWNPASS and ACCTRAN.
+**Note**: Reconstruction should be performed by a maximum-likelihood (MPPA) and maximum-parsimony method (ACCTRAN) for ASA and SEV, respectively. Therefore, ML and MP are replaced with MPPA and ACCTRAN. <br>
 In addition to the above, `pastml` options can be acceptable (for example, `--upload_to_itol`).
 
 ### Phylogenetic profiling
@@ -135,11 +135,11 @@ Depending on the selected method, the output CSV file contains the following col
 |-------|-------|------|------|------|------|
 | OG0001| OG0002| 12.0 | 3.0  | 2.0  | 8.0  |
 
-- **OG1, OG2**: Ortholog pair IDs 
-- **TT**: Number of genomes where both OG1 and OG2 are present 
-- **TF**: Number of genomes where OG1 is present and OG2 is absent 
-- **FT**: Number of genomes where OG1 is absent and OG2 is present 
-- **FF**: Number of genomes where both OG1 and OG2 are absent 
+- **OG1, OG2**: Ortholog pair IDs
+- **TT**: Number of genomes where both OG1 and OG2 are present
+- **TF**: Number of genomes where OG1 is present and OG2 is absent
+- **FT**: Number of genomes where OG1 is absent and OG2 is present
+- **FF**: Number of genomes where both OG1 and OG2 are absent
 
 **Transition methods (`cotr`, `sev`)**
 
@@ -147,10 +147,10 @@ Depending on the selected method, the output CSV file contains the following col
 |-------|-------|-----------|-----------|-----|-------|
 | OG0001| OG0002| 23         | 46       |  5  |  100  |
 
-- **OG1, OG2**: Ortholog pair IDs 
+- **OG1, OG2**: Ortholog pair IDs
 - **num_change1, numchnage2**: Number of presence/absence changes of OG1 and OG2
-- **k**: Number of concordance(positive)/discordance(negative) changes  
-- **n**: Number of genomes (`cotr`) or internal nodes in the tree  
+- **k**: Number of concordance(positive)/discordance(negative) changes
+- **n**: Number of genomes (`cotr`) or internal nodes in the tree
 
 
 ### Statictical test
@@ -183,10 +183,10 @@ The output CSV file from the `stat` subcommand contains:
 |-------|-------|------|--------|--------|--------|
 | OG0001| OG0002| 2.5  | 0.01   | 0.02   | True   |
 
-- **odds**: Odds ratio  
-- **pvalue**: P-value from statistical test  
-- **qvalue**: Adjusted p-value (multiple testing correction)  
-- **signif**: Whether the result is significant (True/False)  
+- **odds**: Odds ratio
+- **pvalue**: P-value from statistical test
+- **qvalue**: Adjusted p-value (multiple testing correction)
+- **signif**: Whether the result is significant (True/False)
 
 ## License
 
