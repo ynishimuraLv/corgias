@@ -1,31 +1,32 @@
-## Usage
+# Usage
 
 CORGIAS provides three subcommand.
-1. **`profiling`** calculate values necessary for evaluating correlation of all ortholog pairs. Two our new profiling methods.
-2. **`asr`** performs ancestral state of ortholog presence/absence for Ancestral steate adjustment (ASA) and Simultaneous Evolutionary Test (SEV).
+1. **`asr`** performs ancestral state of ortholog presence/absence for Ancestral steate adjustment (ASA) and Simultaneous Evolutionary Test (SEV).
+2. **`profiling`** calculate values necessary for evaluating correlation of all ortholog pairs. Six methods are available, and ASA and SEV are our proposed methods.
 3. **`stat`** performs statistical tests using values calculated by `profiling`.
 
-### Ancestral state construction (ASR)
+## Ancestral state construction (ASR)
 
-`asr` reuqires a rooted species tree in Newick format and an ortholog table in CSV or CSV-like format (separator can be sepcified with `-s/--separator` option). This subcommand acts as a wrapper for running  `pastml` in parallel.
+`asr` reuqires a rooted species tree in Newick format and an ortholog table in CSV or CSV format. This subcommand acts as a wrapper for running  `pastml` in parallel.
 
 ```
 $corgias asr -h
-usage: corgias asr [-h] -t TREE -d DATA [-i ID_INDEX] [-s SEPARATOR] --work_dir WORK_DIR [-c CORES] [--test TEST] [--tmp TMP] [--keep]
+usage: corgias asr [-h] -t TREE [-m {MPPA,MAP,JOINT,DOWNPASS,ACCTRAN,DELTRAN,ML,MP}] -d DATA
+                   [-i ID_INDEX] --work_dir WORK_DIR [-c CORES] [--test TEST] [--tmp TMP] [--keep]
 
 	Prepare trees with ancestral presence/absence states of ortholog for ASA or SEV profiling.
-	The ortholog table should be a CSV-like file but each ortholog is assmued to be evolved independently.
+	The ortholog table should be a CSV file but each ortholog is assmued to be evolved independently.
 	Example usage:
 		corgias asr -t tree.nwk -d orthologs.csv -i 0 -s "," -o pastml_result -c 4 --prediction_method ML
 ```
 
-#### Options
+### Options
 | Option                  | Description                                                                 |
 |-------------------------|-----------------------------------------------------------------------------|
 | `-h, --help`            | Show the help message and exit.                                            |
 | `-t, --tree TREE`       | Path to the species tree file (Newick format).                             |
 | `-m, --prediction_method METHOD`       | Method for ASR.                             |
-| `-d, --data DATA`       | Path to the ortholog table file (CSV or CSV-like format).                              |
+| `-d, --data DATA`       | Path to the ortholog table file (CSV format).                              |
 | `-i, --id_index ID_INDEX` | Column index for ortholog IDs (0-based).                                 |
 | `-s, --separator SEPARATOR` | Separator for the ortholog table (default:  `,`).                      |
 | `--work_dir WORK_DIR`   | Directory for output files.                                                |
@@ -37,7 +38,7 @@ usage: corgias asr [-h] -t TREE -d DATA [-i ID_INDEX] [-s SEPARATOR] --work_dir 
 **Note**: Reconstruction should be performed by a maximum-likelihood (DOWNPASS) and maximum-parsimony method (ACCTRAN) for ASA and SEV, respectively. Therefore, ML and MP are replaced with DOWNPASS and ACCTRAN.
 In addition to the above, `pastml` options can be acceptable (for example, `--upload_to_itol`).
 
-### Phylogenetic profiling
+## Phylogenetic profiling
 
 The `profiling` subcommand supports six methods:
 
@@ -53,6 +54,7 @@ The `profiling` subcommand supports six methods:
 | `naive` | Ortholog table (CSV format).                                                  |
 | `rle`, `cwa`, `cotr` | Ortholog table (CSV format) and rooted species tree (Newick format). |
 | `asa`, `sev` | Output folder from `asr` and rooted species tree (Newick format).        |
+**Note:** Input options that are not supported by each method will be ignored even if specified.
 
 It is highly recommended to run with `--test` with a small number before running with a large dataset.
 ```bash
@@ -71,7 +73,7 @@ usage: corgias profiling [-h] -m {naive,rle,cwa,asa,cotr,sev} [-og OG_TABLE] [-a
 
   Note: with --test 5, Run test will start using five orthologs.
 ```
-#### Options
+### Options
 | Option                  | Description                                                                 |
 |-------------------------|-----------------------------------------------------------------------------|
 | `-h, --help`            | Show the help message and exit.                                            |
@@ -86,7 +88,9 @@ usage: corgias profiling [-h] -m {naive,rle,cwa,asa,cotr,sev} [-og OG_TABLE] [-a
 | `-nb, --num_blocks NUM_BLOCKS` | Number of blocks for GPU computation.                               |
 | `--test TEST`           | Number of orthologs to process in test mode.
 
-#### Output
+**Note:** `--gpu` and `--num_blocks` are available only when CORGIAS installed with `.[gpu]` and when selected methods is naive, cotr or sev.
+
+### Output
 Depending on the selected method, the output CSV file contains the following columns:
 
 **Weighted methods (`naive`, `rle`, `cwa`, `asa`)**
@@ -113,7 +117,7 @@ Depending on the selected method, the output CSV file contains the following col
 - **n**: Number of genomes (`cotr`) or internal nodes in the tree  
 
 
-### Statictical test
+## Statictical test
 The `stat` subcommand performs statistical tests on the results generated by `profiling`.
 ```
 corgias stat [-h] -i INPUT -m {naive,rle,cwa,asa,cotr,sev} [-o OUTPUT] [-d {both,correlation,anti-correlation}] [-c CORES] [-t THRETHOLD] [-s {bonferroni,sidak,holm-sidak,simes-hochberg,hommel,fdr_bh,fdr_by,fdr_tsbh,fdr_tsbky}] [--only_signif]
@@ -122,7 +126,7 @@ corgias stat [-h] -i INPUT -m {naive,rle,cwa,asa,cotr,sev} [-o OUTPUT] [-d {both
 	Example usage:
 		corgias stat -i profiling_result.csv -m naive -o stat_out.csv -c 4
 ```
-#### Options
+### Options
 
 | Option                  | Description                                                                 |
 |-------------------------|-----------------------------------------------------------------------------|
@@ -136,7 +140,7 @@ corgias stat [-h] -i INPUT -m {naive,rle,cwa,asa,cotr,sev} [-o OUTPUT] [-d {both
 | `-s, --statistical_test {bonferroni,sidak,holm-sidak,simes-hochberg,hommel,fdr_bh,fdr_by,fdr_tsbh,fdr_tsbky}` | Statistical test method. |
 | `--only_signif`         | Output only significant results.
 
-#### Output
+###S Output
 The output CSV file from the `stat` subcommand contains:
 
 | OG1   | OG2   | odds | pvalue | qvalue | signif |
