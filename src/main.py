@@ -45,9 +45,9 @@ def main():
         return subpar
     
     asr_description = '\tPrepare trees with ancestral presence/absence states of ortholog for ASA or SEV profiling. \n' \
-        '\tThe ortholog table should be a CSV-like file but each ortholog is assmued to be evolved independently. \n' \
+        '\tThe ortholog table should be a CSV file but each ortholog is assmued to be evolved independently. \n' \
         '\tExample usage:\n' \
-        '\t\tcorgias asr -t tree.nwk -d orthologs.csv -i 0 -s "," -o pastml_result -c 4 --prediction_method ML\n\n'\
+        '\t\tcorgias asr -t tree.nwk -d orthologs.csv -i 0 --work_dir pastml_result -c 4 --prediction_method ML\n\n'\
         '\tNote: Recostruction should be performed by a maximum-likelihood (DOWNPASS) and maximum-parsimony method (ACCTRAN)\n' \
         '\t      for ASA and SEV, respectively.\n'
     profiling_description = '\tPerform phylogenetic profiling using a ortholog table (naive, rle, cwa, cotr)\n' \
@@ -71,7 +71,6 @@ def main():
                             default='ML')
     asr_parser.add_argument('-d', '--data', required=True)
     asr_parser.add_argument('-i', '--id_index', default=0, type=int)
-    asr_parser.add_argument('-s', '--separator', default=',')
     asr_parser.add_argument('--work_dir', required=True)
     asr_parser.add_argument('-c', '--cores', default=1)
     asr_parser.add_argument('--test', type=int, default=0)
@@ -110,7 +109,7 @@ def main():
     args, options = parser.parse_known_args()
     
     if args.subparser_name == 'asr':
-        df = pl.read_csv(args.data, separator=args.separator).to_pandas()
+        df = pl.read_csv(args.data).to_pandas()
         index_col = df.columns[int(args.id_index)]
         df.set_index(index_col, inplace=True)
         df_type_check = df.dtypes.apply(pd.api.types.is_integer_dtype).all()
@@ -135,7 +134,7 @@ def main():
             df.loc[:, col].to_csv(file)
             jobs.append((file, ))
         
-        asr_runner = asr.PastMLRunner(args.tree, args.prediction_method, args.separator, args.work_dir, args.cores)
+        asr_runner = asr.PastMLRunner(args.tree, args.prediction_method, args.work_dir, args.cores)
         asr_runner.set_pastml_command(options)
         firstfile = jobs[0][0]
         returncode, _, _ = asr_runner.run_pastml(firstfile)

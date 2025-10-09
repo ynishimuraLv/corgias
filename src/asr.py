@@ -4,7 +4,7 @@ import subprocess
 from multiprocessing import Pool
 
 class PastMLRunner:
-    def __init__(self, tree: str, method: str, separator: str, work_dir: str, cores: int):
+    def __init__(self, tree: str, method: str, work_dir: str, cores: int):
         self.tree = tree
         if method == 'ML':
             self.method = 'DOWNPASS'
@@ -12,13 +12,12 @@ class PastMLRunner:
             self.method = 'ACCTRAN'
         else:
             self.method = method
-        self.separator = separator
         self.work_dir = work_dir
         self.cores = int(cores)
         self.command = ['pastml']
         
     def set_pastml_command(self, options: list[str]):
-        self.command += ['-t', self.tree, '-s', self.separator, '--prediction_method', self.method] + options
+        self.command += ['-t', self.tree, '-s', ",", '--prediction_method', self.method] + options
     
     
     def run_pastml(self, file: str):
