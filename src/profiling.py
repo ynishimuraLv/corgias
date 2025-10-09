@@ -225,7 +225,10 @@ def asa(tree_og1: tuple[str, str],
     og1 = tree_og1[1]
     og2 = tree_og2[1]
     merged_tree = merge_tree(tree1, og1, tree2, og2)
-    result = correct_by_ancestral_state(merged_tree)
+    if ignore_branch:
+        result = count_by_ancestral_state(merged_tree)
+    else:
+        result = correct_by_ancestral_state(merged_tree)
 
     return og1, og2, result['1'], result['2'], result['3'], result['0']
 
@@ -260,6 +263,31 @@ def correct_genomes(node: et.Tree) -> float:
         return 1
     else:
         return node.num_child * (node.pathlength / node.denominator)
+
+def count_by_ancestral_state(tree: et.Tree):
+    result = { str(i):0 for i in range(4) }
+    for node in tree.traverse(strategy='postorder'):
+        node.state = node.trait
+        if node.is_leaf():
+            node.num_child = 1
+        else:
+            node.num_child = 0
+            if node.state in '0123':
+                for child in node.get_children():
+                    if node.state == child.state:
+                        node.num_child = 1
+                    else:
+                        if child.num_child:
+                            result[child.state] += 1
+            else:
+                for child in node.get_children():
+                    if child.num_child:
+                        result[child.state] += 1
+
+    if tree.num_child:
+        result[tree.state] += 1
+
+    return result
 
 
 def correct_by_ancestral_state(tree: et.Tree):
