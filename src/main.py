@@ -168,11 +168,11 @@ def main():
                     f'required when using {args.method} method',
                     file=sys.stderr)
                 sys.exit(1)
-        elif args.method in ['asa', 'sim'] and not args.asr_folder:
+        elif args.method in ['asa', 'sev'] and not args.asr_folder:
             print('The results of ancestral state reconstruction are '
                 f'required when using {args.method} method',
                 file=sys.stderr)
-        elif args.method in ['asa', 'sim'] and not args.tree:
+        elif args.method in ['asa', 'sev'] and not args.tree:
             print('A phylogenetic tree is required '
                 f'when using {args.method} method',
                 file=sys.stderr)

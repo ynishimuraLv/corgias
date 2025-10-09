@@ -150,11 +150,11 @@ def flatten_indices(df: NDArray[np.int64]) -> pl.DataFrame:
 class RLE_CWA:
     def __init__(self, df: pd.DataFrame, method: str,
                  tree: et.Tree, cores: int):
-        self.df = df.applymap(count2bin)
+        self.df = df.map(count2bin)
         self.method = method
         self.tree = tree
         self.cores = cores
-        if methods == 'rle':
+        if method == 'rle':
             order = [ leaf.name for leaf in self.tree.get_leaves() ]
             self.df = self.df.loc[order]
 
