@@ -24,6 +24,9 @@ try:
 except ImportError:
     CUPY_AVAILABLE = False
 
+
+
+
 def main():
 
     parent_parser = argparse.ArgumentParser(
@@ -65,6 +68,12 @@ def main():
                        '\tExample usage:\n' \
                        '\t\tcorgias stat -i profiling_result.csv -m naive -o stat_out.csv -c 4 \n'
 
+    def positive_int(value):
+        ivalue = int(value)
+        if ivalue <= 0:
+            raise argparse.ArgumentTypeError(f"{value} is not a valid positive integer")
+        return ivalue
+
     asr_parser = new_subparser(subparsers, 'asr', asr_description)
     asr_parser.add_argument('-t', '--tree', required=True)
     asr_parser.add_argument('-m', '--prediction_method', choices=['MPPA','MAP','JOINT','DOWNPASS','ACCTRAN',
@@ -74,7 +83,7 @@ def main():
     asr_parser.add_argument('-i', '--id_index', default=0, type=int)
     asr_parser.add_argument('--work_dir', required=True)
     asr_parser.add_argument('-c', '--cores', default=1)
-    asr_parser.add_argument('--test', type=int, default=0)
+    asr_parser.add_argument('--test', type=positive_int, default=0)
     asr_parser.add_argument('--tmp')
     asr_parser.add_argument('--keep', action='store_true', default=False)
 
@@ -84,12 +93,18 @@ def main():
     profiling_parser.add_argument('-a', '--asr_folder')
     profiling_parser.add_argument('-o', '--output', required=True)
     profiling_parser.add_argument('-t', '--tree')
-    profiling_parser.add_argument('-c', '--cores', type=int, default=1)
+    profiling_parser.add_argument('-c', '--cores', type=positive_int, default=1)
     profiling_parser.add_argument('--ignore_branch', action='store_true', default=False)
     if CUPY_AVAILABLE:
         profiling_parser.add_argument('--gpu', action='store_true', default=False)
-        profiling_parser.add_argument('-nb', '--num_blocks', type=int, default=0)
-    profiling_parser.add_argument('--test', type=int, default=0)
+        profiling_parser.add_argument('-nb', '--num_blocks', type=positive_int, default=0)
+    profiling_parser.add_argument('--test', type=positive_int, default=0)
+
+    def valid_float(value: str):
+        fvalue = float(value)
+        if not (0 < fvalue <= 1):
+            raise argparse.ArgumentTypeError(f"{value} is not a valid float. It should be larger than 0 and smaller than 1")
+        return fvalue
 
     stat_parser = new_subparser(subparsers, 'stat', stat_description)
     stat_parser.add_argument('-i', '--input', required=True)
@@ -99,8 +114,8 @@ def main():
     stat_parser.add_argument('-d', '--direction',
                              choices=['both', 'correlation', 'anti-correlation'],
                              default='both')
-    stat_parser.add_argument('-c', '--cores', type=int, default=1)
-    stat_parser.add_argument('-t', '--threthold', type=float, default=0.05)
+    stat_parser.add_argument('-c', '--cores', type=positive_int, default=1)
+    stat_parser.add_argument('-t', '--threthold', type=valid_float, default=0.05)
     stat_parser.add_argument('-s', '--statistical_test',
                              choices=['bonferroni', 'sidak', 'holm-sidak', 'simes-hochberg',
                                       'hommel', 'fdr_bh', 'fdr_by', 'fdr_tsbh', 'fdr_tsbky'],
