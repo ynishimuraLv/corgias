@@ -1,5 +1,4 @@
 # Corgias
-
 <div align="center">
 <p align="center">
     <img src="CORGIAS.png?raw=true?" alt="corgias-logo" width="300">
@@ -8,6 +7,8 @@
 <h1>CORGIAS</h1>
 <h3>CORrelated Genes Identifier by considering Ancestral State</h3>
 </div>
+
+[![DOI](https://zenodo.org/badge/961329653.svg)](https://doi.org/10.5281/zenodo.15583904)
 
 CORGIAS is a phylogenetic profiling tool for a large-scale dataset comprising of thousands and tens of thousands of orthologs and genomes. As co- and anti-correlated orthologs are expexted to be functionally related, CORGIAS can help functional annotation of orthologs, especially those showing no sequence similarity to functionally known genes.
 
@@ -92,7 +93,7 @@ If you use CORGIAS in your research, please the paper below:
 ```
 Yuki Nishimura, Kimiho Omae, Kento Tominnaga, Wataru Iwasaki.
 CORGIAS: identifying correlated gene pairs by considering evolutionary history in a large-scale prokaryotic genome dataset
-bioRxiv, 2025, https://doi.org/10.1101/2025.05.07.652372
+NAR Genomics and Bioinformatics, 2025, https://doi.org/10.1093/nargab/lqaf182
 ```
 
 The results in this paper can be reproduced by using the code [here](https://github.com/ynishimuraLv/CORGIAS_data.git)
