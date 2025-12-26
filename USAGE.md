@@ -140,14 +140,14 @@ corgias stat [-h] -i INPUT -m {naive,rle,cwa,asa,cotr,sev} [-o OUTPUT] [-d {both
 | `-s, --statistical_test {bonferroni,sidak,holm-sidak,simes-hochberg,hommel,fdr_bh,fdr_by,fdr_tsbh,fdr_tsbky}` | Statistical test method. |
 | `--only_signif`         | Output only significant results.
 
-###S Output
+### Output
 The output CSV file from the `stat` subcommand contains:
 
-| OG1   | OG2   | odds | pvalue | qvalue | signif |
+| OG1   | OG2   | odds / direction | pvalue | qvalue | signif |
 |-------|-------|------|--------|--------|--------|
-| OG0001| OG0002| 2.5  | 0.01   | 0.02   | True   |
+| OG0001| OG0002| 2.5/10  | 0.01   | 0.02   | True   |
 
-- **odds**: Odds ratio
+- **odds / direction**: Odds ratio (weighted methods) / Difference of concordance and discordance changes (transtion methods)
 - **pvalue**: P-value from statistical test
 - **qvalue**: Adjusted p-value (multiple testing correction)
 - **signif**: Whether the result is significant (True/False)
