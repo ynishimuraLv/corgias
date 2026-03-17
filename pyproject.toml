@@ -13,7 +13,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-gpu = ["cupy-cuda12x>=13.4.1"]
+gpu = ["cupy-cuda12x>=13.4.1", "nvidia-cublas-cu12>=12,<13"]
 
 [build-system]
 requires = ["hatchling"]
