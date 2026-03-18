@@ -149,7 +149,7 @@ def main():
             file = str(tmpdir.joinpath(col))
             df.loc[:, col].to_csv(file)
             jobs.append((file, ))
-        
+
         asr_runner = asr.PastMLRunner(args.tree, args.prediction_method, args.work_dir, args.cores)
         asr_runner.set_pastml_command(options)
         firstfile = jobs[0][0]
@@ -193,7 +193,7 @@ def main():
                 f'when using {args.method} method',
                 file=sys.stderr)
             sys.exit(1)
-            
+
         weighted_schema = { "OG1": pl.Utf8, "OG2": pl.Utf8,
                            "TT": pl.Float64, "TF": pl.Float64,
                            "FT": pl.Float64, "FF": pl.Float64
@@ -295,5 +295,4 @@ def main():
         result.write_csv(args.output)
 
 if __name__ == '__main__':
-    main()
     main()
