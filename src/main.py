@@ -1,5 +1,7 @@
 #!/usr/bin/env python
-
+import sys
+import logging
+from src.logconfig import setup_logger
 import src.asr as asr
 import src.calstat as calstat
 import src.parser as parser
@@ -8,6 +10,10 @@ import src.profiling as profiling
 
 def main():
     args, options = parser.parse_arguments()
+    setup_logger(args.log_file, args.verbose, args.quiet)
+
+    logging.info("CORGIAS started")
+    logging.info("Command: %s", args.subparser_name)
 
     if args.subparser_name == 'asr':
         asr.run_asr(args, options)

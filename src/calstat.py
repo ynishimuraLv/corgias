@@ -1,3 +1,4 @@
+import logging
 import polars as pl
 from multiprocessing import Pool
 
@@ -27,7 +28,11 @@ def run_test4transition(OG1: str, OG2: str, t1: int,
 
     return OG1, OG2, direction, pvalue
 
+
+logger = logging.getLogger(__name__)
+
 def run_stat(args, options):
+    logger.info("Conducting statistical tests for phylogenetic profiling results")
     weighted_method = ['naive', 'rle', 'cwa', 'asa']
     transition_method = ['cotr', 'sev']
 

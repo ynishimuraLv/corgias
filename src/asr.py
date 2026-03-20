@@ -3,10 +3,12 @@ import sys
 import pathlib
 import shutil
 import subprocess
+import logging
 import pandas as pd
 import polars as pl
 from datetime import datetime
 from multiprocessing import Pool
+
 
 
 class PastMLRunner:
@@ -38,7 +40,10 @@ class PastMLRunner:
             process.starmap(self.run_pastml, files)
 
 
+logger = logging.getLogger(__name__)
+
 def run_asr(args, options):
+    logger.info("Starting ancestral state reconstruction")
     df = pl.read_csv(args.data).to_pandas()
     index_col = df.columns[int(args.id_index)]
     df.set_index(index_col, inplace=True)
