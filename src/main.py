@@ -17,13 +17,7 @@ import src.asr as asr
 import src.calstat as calstat
 import src.parser as parser
 import src.profiling as profiling
-
-try:
-    import cupy
-    CUPY_AVAILABLE = True
-except ImportError:
-    CUPY_AVAILABLE = False
-
+from src.config import CUPY_AVAILABLE
 
 def run_asr(args, options):
     df = pl.read_csv(args.data).to_pandas()

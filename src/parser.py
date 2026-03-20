@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import argparse
+from src.config import CUPY_AVAILABLE
+
 
 
 def positive_int(value):
