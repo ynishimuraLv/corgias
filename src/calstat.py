@@ -1,4 +1,9 @@
+import polars as pl
+from multiprocessing import Pool
+
 from scipy import stats
+from statsmodels.stats.multitest import multipletests
+
 
 def run_test4weighted(OG1: str, OG2: str, tt: float, tf: float,
                       ft: float, ff: float, direction: str):
@@ -7,9 +12,9 @@ def run_test4weighted(OG1: str, OG2: str, tt: float, tf: float,
          [ft, ff]],
          alternative = direction
     )
-    
+
     return OG1, OG2, odds, pvalue
-    
+
 def run_test4transition(OG1: str, OG2: str, t1: int,
                         t2: int, k: int, n: int):
     direction = k
@@ -19,5 +24,42 @@ def run_test4transition(OG1: str, OG2: str, t1: int,
          [t2-k, n-t1-t2+k]],
          alternative='greater'
     )
-    
+
     return OG1, OG2, direction, pvalue
+
+def run_stat(args, options):
+    weighted_method = ['naive', 'rle', 'cwa', 'asa']
+    transition_method = ['cotr', 'sev']
+
+    df = pl.read_csv(args.input)
+    if args.method in weighted_method:
+        if args.direction == 'correlation':
+            direction = 'greater'
+        elif args.direction == 'anti-correlation':
+            direction = 'less'
+        else:
+            direction = 'two-sided'
+        df = df.with_columns(pl.lit(direction).alias('alternative'))
+        rows = df.select('OG1', 'OG2', 'TT', 'TF', 'FT', 'FF', 'alternative').iter_rows()
+        with Pool(processes=args.cores) as process:
+            result = pl.DataFrame(process.starmap_async(run_test4weighted, rows).get(),
+                                    schema=['OG1', 'OG2', 'odds', 'pvalue'], orient='row')
+    elif args.method in transition_method:
+        if args.direction == 'correlation':
+            df = df.filter(pl.col('k') > 0)
+        elif args.direction == 'anti-correlation':
+            df = df.filter(pl.col('k') < 0)
+        rows = df.iter_rows()
+        with Pool(processes=args.cores) as process:
+            result = pl.DataFrame(process.starmap_async(run_test4transition, rows).get(),
+                                    schema=['OG1', 'OG2', 'direction', 'pvalue'],
+                                    orient='row')
+
+    qvalues = multipletests(result['pvalue'], method=args.statistical_test,
+                            alpha=args.threthold)
+    result = result.with_columns(pl.Series('qvalue', qvalues[1]),
+                                    pl.Series('signif', qvalues[0]))
+    if args.only_signif:
+        result = result.filter(pl.col('signif'))
+    result = result.sort(by='qvalue')
+    result.write_csv(args.output)
