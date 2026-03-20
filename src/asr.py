@@ -29,9 +29,16 @@ class PastMLRunner:
 
 
     def run_pastml(self, file: str):
+        logger = logging.getLogger(__name__)
+        
         outfile = file.split('/')[-1]
         command = self.command + ['-d', file, '--work_dir', f'{self.work_dir}/{outfile}']
-        result = subprocess.run(command, capture_output=True, text=True)
+        logger.debug(f"Running Ancestral state reconstruction of {file}")
+        
+        result = subprocess.run(command, 
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
+                                text=True)
         return result.returncode, result.stdout, result.stderr
 
 
@@ -47,13 +54,16 @@ def run_asr(args, options):
     df = pl.read_csv(args.data).to_pandas()
     index_col = df.columns[int(args.id_index)]
     df.set_index(index_col, inplace=True)
+    logger.info(f'Loaded data with {df.shape[0]} rows and {df.shape[1]} columns.')
     df_type_check = df.dtypes.apply(pd.api.types.is_integer_dtype).all()
     if not df_type_check:
-        sys.exit('Input data includes non Integer columns')
-    else:
-        df = df.where(df == 0, 1)
-        if args.test:
-            df = df.iloc[:, :int(args.test)]
+        logger.error('Input data includes non Integer columns')
+        raise ValueError('Input data must be integer')
+  
+    df = df.where(df == 0, 1)
+    if args.test:
+        logger.info(f'Test mode: using first {args.test} columns.')
+        df = df.iloc[:, :int(args.test)]
 
     if not args.tmp:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -61,6 +71,7 @@ def run_asr(args, options):
     else:
         tmpdir = pathlib.Path(args.tmp)
     tmpdir.mkdir()
+    logger.debug(f'Temporary directory created at {tmpdir.resolve()}')
 
     pathlib.Path(args.work_dir).mkdir(exist_ok=True, parents=True)
     jobs: list[str] = []
@@ -68,21 +79,37 @@ def run_asr(args, options):
         file = str(tmpdir.joinpath(col))
         df.loc[:, col].to_csv(file)
         jobs.append((file, ))
+    logger.debug(f'Prepared {len(jobs)} jobs for ASR.')
 
     asr_runner = PastMLRunner(args.tree, args.prediction_method, args.work_dir, args.cores)
     asr_runner.set_pastml_command(options)
     firstfile = jobs[0][0]
-    returncode, _, _ = asr_runner.run_pastml(firstfile)
+    logger.info('Running pastml check with the first data.')
+    returncode, stdout, stderr = asr_runner.run_pastml(firstfile)
 
     if returncode != 0:
+        logger.error('PastML failed.')
+        logger.error(f'stdout:\n{stdout}\n')
+        logger.error(f'stderr:\n{stderr}\n')
+        
         if not args.keep:
             shutil.rmtree(tmpdir)
-        print('Something went wrong with pastml. See options by pastml --help')
-        sys.exit(f'''
-                    Your command was interpreted as:
-                     {asr_runner.command + ['-d', firstfile]}
-                 ''')
+            logger.debug('Temporary directory removed.')
+        
+        raise RuntimeError(
+            f'PastMl failed\n'
+            f'Your command was interpreted as:\n'
+            f' {" ".join(asr_runner.command + ["-d", firstfile])}\n'
+            f'Please check the error message above and see options by pastml --help'
+        )
+    else:
+        logger.info('PastML check passed successfully.')
 
+    logger.info(f'Running ASR in parrallel with {args.cores} CPUs.')
     asr_runner.run_parallel(jobs)
+
+    logger.info('ASR completed successfully.')
+    
     if not args.keep:
         shutil.rmtree(tmpdir)
+        logger.debug('Temporary directory removed.')

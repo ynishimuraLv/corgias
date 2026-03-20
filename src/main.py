@@ -12,8 +12,7 @@ def main():
     args, options = parser.parse_arguments()
     setup_logger(args.log_file, args.verbose, args.quiet)
 
-    logging.info("CORGIAS started")
-    logging.info("Command: %s", args.subparser_name)
+    logging.info(f"CORGIAS started")
 
     if args.subparser_name == 'asr':
         asr.run_asr(args, options)
