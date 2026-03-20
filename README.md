@@ -12,10 +12,15 @@
 
 CORGIAS is a phylogenetic profiling tool for a large-scale dataset comprising of thousands and tens of thousands of orthologs and genomes. As co- and anti-correlated orthologs are expexted to be functionally related, CORGIAS can help functional annotation of orthologs, especially those showing no sequence similarity to functionally known genes.
 
+
+## Platform Support
+| Feature | Linux | macOS |
+|---|---|---|
+| Core functionality | ✓ | ✓ |
+| Polars acceleration | ✓ | ✓ |
+| CuPy GPU acceleration | ✓ (NVIDIA GPU required) | ✗ |
+
 ## Installation
-
-Corgias can be installed on Linux system.
-
 ```bash
 # Download
 git clone https://github.com/ynishimuraLv/corgias.git
@@ -26,6 +31,7 @@ python -m venv .venv
 . .venv/bin/activate
 
 # For System with GPU compatible CUDA 12.x
+# This option is not available on macOS.
 python -m pip install .[gpu]
 
 # For System without a compatible GPU (CPU-only)
