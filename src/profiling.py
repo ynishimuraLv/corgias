@@ -9,12 +9,10 @@ import pandas as pd
 import polars as pl
 from numpy.typing import NDArray
 
-try:
-    import cupy as cp
-    CUPY_AVAILABLE = True
-except ImportError:
-    CUPY_AVAILABLE = False
+from src.config import CUPY_AVAILABLE
 
+if CUPY_AVAILABLE:
+    import cupy as cp
 
 def gene_count(genes: str) -> int:
     if genes == '*' or not genes:
