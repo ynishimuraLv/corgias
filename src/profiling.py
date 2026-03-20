@@ -12,10 +12,8 @@ from numpy.typing import NDArray
 from collections import Counter
 from multiprocessing import Pool
 
-from src.config import CUPY_AVAILABLE
+from src.config import CUPY_AVAILABLE, cp
 
-if CUPY_AVAILABLE:
-    import cupy as cp
 
 def gene_count(genes: str) -> int:
     if genes == '*' or not genes:
