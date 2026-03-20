@@ -1,13 +1,16 @@
 #!/usr/bin/env python
-from collections import Counter
-from itertools import combinations, groupby
-from multiprocessing import Pool
-
+import os
+import pathlib
+import sys
 import ete3 as et
 import numpy as np
 import pandas as pd
 import polars as pl
+from itertools import combinations
+from itertools import groupby
 from numpy.typing import NDArray
+from collections import Counter
+from multiprocessing import Pool
 
 from src.config import CUPY_AVAILABLE
 
@@ -414,4 +417,93 @@ def calculate_k(t_matrix: pl.DataFrame, gpu: bool = False,
 
     return k
 
+def validate_args(args):
+    if args.method == 'naive' and not args.og_table:
+        print('An ortholog table is required when using naive method',
+            file=sys.stderr)
+        sys.exit(1)
+    elif args.method in ['rle', 'cwa']:
+        if (not args.tree) or (not args.og_table):
+            print('An ortholog table and a phylogenetic tree are '
+                f'required when using {args.method} method',
+                file=sys.stderr)
+            sys.exit(1)
+    elif args.method in ['asa', 'sev'] and not args.asr_folder:
+        print('The results of ancestral state reconstruction are '
+            f'required when using {args.method} method',
+            file=sys.stderr)
+    elif args.method in ['asa', 'sev'] and not args.tree:
+        print('A phylogenetic tree is required '
+            f'when using {args.method} method',
+            file=sys.stderr)
+        sys.exit(1)
 
+def run_profiling(args, options):
+    if not CUPY_AVAILABLE:
+        args.gpu = False
+        args.num_blocks = 0
+
+    validate_args(args)
+
+    weighted_schema = { "OG1": pl.Utf8, "OG2": pl.Utf8,
+                        "TT": pl.Float64, "TF": pl.Float64,
+                        "FT": pl.Float64, "FF": pl.Float64
+                    }
+
+    if args.method in ['naive', 'rle', 'cwa', 'cotr']:
+        df = pl.read_csv(args.og_table).to_pandas()
+        index = df.columns[0]
+        df.set_index(index, inplace=True)
+        if args.test != 0:
+            df = df.iloc[:, :args.test]
+
+        # df = df.applymap(count2bin) フォーマットチェックは一旦置いておく
+        if args.method == 'naive':
+            result = run_naive(df, args.gpu, args.num_blocks, args.cores)
+
+        elif args.method in ['rle', 'cwa']:
+            tree = et.Tree(args.tree, format=1)
+            profiler = RLE_CWA(df, args.method, tree, cores=args.cores)
+            result = profiler.run_paralell()
+            result = pl.DataFrame(result, schema = weighted_schema,
+                                orient='row')
+
+        elif args.method == 'cotr':
+            tree = et.Tree(args.tree, format=1)
+            order = [ leaf.name for leaf in tree.get_leaves() ]
+            df = df.loc[order]
+            ogs = ((i, row) for i, row in df.T.iterrows())
+            with Pool(processes=args.cores) as process:
+                count = process.starmap_async(count_transition, ogs).get()
+
+            num_genomes = len(order) - 1
+
+            result = run_transition(count, args.gpu, args.num_blocks, num_genomes)
+
+    else: #elif args.method == 'asa' or args.method == 'sev':
+        tree_name = pathlib.Path(args.tree).stem
+        tree_name = 'named.tree_' + tree_name + '.nwk'
+        trees = ((f'{args.asr_folder}/{folder}/{tree_name}', folder)
+                for folder in os.listdir(args.asr_folder)
+                if os.path.exists(f'{args.asr_folder}/{folder}/{tree_name}'))
+        if args.test != 0:
+            trees = list(trees)[:args.test]
+
+        if args.method == 'asa':
+            pairs = ((tree1, tree2, args.ignore_branch) for tree1, tree2
+                    in combinations(trees, 2))
+            with Pool(processes=args.cores) as process:
+                result = pl.DataFrame(process.starmap_async(asa, pairs).get(),
+                                    schema = weighted_schema,
+                                    orient='row')
+
+        else: #  args.method == 'sev':
+            with Pool(processes=args.cores) as process:
+                result = process.starmap_async(count_change, trees)
+                count = result.get()
+            tree = et.Tree(args.tree, format=1)
+            num_internal_nodes = len(tree.get_leaves()) - 1
+            result = run_transition(count, args.gpu, args.num_blocks,
+                                                num_internal_nodes)
+
+    result.write_csv(args.output)
