@@ -4,7 +4,6 @@ import argparse
 from src.config import CUPY_AVAILABLE
 
 
-
 def positive_int(value):
     ivalue = int(value)
     if ivalue <= 0:
@@ -22,6 +21,9 @@ def parse_arguments():
         add_help=False,
         description = 'CORGIAS'
     )
+    parent_parser.add_argument("--log-file", default="log.txt")
+    parent_parser.add_argument("--verbose", action="store_true")
+    parent_parser.add_argument("--quiet", action="store_true")
 
     parser = argparse.ArgumentParser(parents=[parent_parser])
     subparsers = parser.add_subparsers(title='Sub-commands', dest='subparser_name',
@@ -108,6 +110,7 @@ def parse_arguments():
     stat_parser.add_argument('--only_signif', action='store_true', default=False)
 
     args, options = parser.parse_known_args()
+
     return args, options
 
 

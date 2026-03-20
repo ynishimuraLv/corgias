@@ -2,6 +2,7 @@
 import os
 import pathlib
 import sys
+import logging
 import ete3 as et
 import numpy as np
 import pandas as pd
@@ -436,7 +437,11 @@ def validate_args(args):
             file=sys.stderr)
         sys.exit(1)
 
+
+logger = logging.getLogger(__name__)
+
 def run_profiling(args, options):
+    logger.info("Starting phylogenetic profiling")
     if not CUPY_AVAILABLE:
         args.gpu = False
         args.num_blocks = 0
