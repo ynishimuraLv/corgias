@@ -46,20 +46,34 @@ def load_og_table(args):
 
 def run_naive(args):
     df = load_og_table(args)
-    if args.gpu:
-        tt, tf, ft, ff = naive_gpu(df, args.num_blocks)
-    else:
-        tt, tf, ft, ff = naive_cpu(df, args.cores)
-    og_names = list(df.columns)
-    result = naivecount2matrix(tt, tf, ft, ff, og_names)
-
-    return result
-
-
-def naive_gpu(df: pd.DataFrame, num_blocks: int = 0
-              ) -> tuple[NDArray[np.int64], NDArray[np.int64],
-                         NDArray[np.int64], NDArray[np.int64]]:
     df_flipped, df_T, df_T_flipped = prepare_matrices(df)
+    if args.query:
+        if args.query not in df.columns:
+            logger.error(f"{args.query} is not found in the ortholog table")
+            raise ValueError(f"{args.query} is not found in the ortholog table")
+        idx = df.columns.get_loc(args.query)
+        df = df.loc[:, args.query]
+        df_T.drop(args.query, inplace=True)
+        df_flipped = df_flipped.iloc[:, idx]
+        df_T_flipped.drop(args.query, inplace=True)
+    if args.gpu:
+        tt, tf, ft, ff = naive_gpu(df, df_flipped, df_T, df_T_flipped, args.num_blocks)
+    else:
+        tt, tf, ft, ff = naive_cpu(df, df_flipped, df_T, df_T_flipped, args.cores)
+
+    og_names = df_T.index
+    if args.query:
+        return pl.DataFrame({'OG1':[args.query]*len(og_names), 'OG2':og_names,
+                             'TT':tt, 'TF':tf, 'FT':ft, 'FF':ff})
+    else:
+        return naivecount2matrix(tt, tf, ft, ff, og_names)
+
+
+def naive_gpu(df: pd.DataFrame, df_T: pd.DataFrame, df_flipped: pd.DataFrame, 
+                  df_T_flipped: pd.DataFrame, num_blocks: int = 0
+                 ) -> tuple[NDArray[np.int64], NDArray[np.int64],
+                         NDArray[np.int64], NDArray[np.int64]]:
+    
     # cp.int16で十分かは後で考える
     df = cp.asarray(df, dtype=cp.int16)
     df_T = cp.asarray(df_T, dtype=cp.int16)
@@ -90,8 +104,8 @@ def prepare_matrices(df: pd.DataFrame
     return df_flipped, df_T, df_T_flipped
 
 
-def naive_cpu(df: pd.DataFrame, cores: int) -> tuple[int, int, int, int]:
-    df_flipped, df_T, df_T_flipped = prepare_matrices(df)
+def naive_cpu(df: pd.DataFrame, df_flipped: pd.DataFrame, df_T: pd.DataFrame, 
+                  df_T_flipped: pd.DataFrame, cores: int) -> tuple[int, int, int, int]:
     jobs = [(df_T, df), (df_T, df_flipped),
             (df_T_flipped, df), (df_T_flipped, df_flipped)]
     if cores > 4:
@@ -527,7 +541,6 @@ def run_profiling(args, options):
     if not CUPY_AVAILABLE:
         args.gpu = False
         args.num_blocks = 0
-    print('test')
     validate_args(args)
 
     method_runner = METHOD_RUNNERS[args.method]

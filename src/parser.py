@@ -85,13 +85,8 @@ def parse_arguments():
     if CUPY_AVAILABLE:
         profiling_parser.add_argument('--gpu', action='store_true', default=False)
         profiling_parser.add_argument('-nb', '--num_blocks', type=positive_int, default=0)
+    profiling_parser.add_argument('-q', '--query', default=None)
     profiling_parser.add_argument('--test', type=positive_int, default=0)
-
-    def valid_float(value: str):
-        fvalue = float(value)
-        if not (0 < fvalue <= 1):
-            raise argparse.ArgumentTypeError(f"{value} is not a valid float. It should be larger than 0 and smaller than 1")
-        return fvalue
 
     stat_parser = new_subparser(subparsers, 'stat', stat_description)
     stat_parser.add_argument('-i', '--input', required=True)
