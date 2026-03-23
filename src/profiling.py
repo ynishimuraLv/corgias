@@ -9,6 +9,7 @@ import pandas as pd
 import polars as pl
 from itertools import combinations
 from itertools import groupby
+from itertools import islice
 from numpy.typing import NDArray
 from collections import Counter
 from multiprocessing import Pool
@@ -175,11 +176,12 @@ def flatten_indices(df: NDArray[np.int64]) -> pl.DataFrame:
 
 class RLE_CWA:
     def __init__(self, df: pd.DataFrame, method: str,
-                 tree: et.Tree, cores: int):
+                 tree: et.Tree, cores: int, query: str):
         self.df = df.map(count2bin)
         self.method = method
         self.tree = tree
         self.cores = cores
+        self.query = query
         if method == 'rle':
             order = [ leaf.name for leaf in self.tree.get_leaves() ]
             self.df = self.df.loc[order]
@@ -228,7 +230,10 @@ class RLE_CWA:
 
 
     def run_paralell(self):
-        pairs = combinations(self.df.columns, 2)
+        if self.query:
+            pairs = [(self.query, og) for og in self.df.columns if og != self.query]
+        else:
+            pairs = combinations(self.df.columns, 2)
         if self.method == 'rle':
             order = [ leaf.name for leaf in self.tree.get_leaves() ]
             self.df = self.df.loc[order]
@@ -250,7 +255,7 @@ weighted_schema = { "OG1": pl.Utf8, "OG2": pl.Utf8,
 def run_rle_cwa(args):
     df = load_og_table(args)
     tree = et.Tree(args.tree, format=1)
-    profiler = RLE_CWA(df, args.method, tree, cores=args.cores)
+    profiler = RLE_CWA(df, args.method, tree, cores=args.cores, query=args.query)
     result = profiler.run_paralell()
     return pl.DataFrame(result, schema = weighted_schema, orient='row')
 
@@ -366,22 +371,39 @@ def correct_by_ancestral_state(tree: et.Tree):
     return result
 
 
-def prepare_trees(args):
+def list_asr_trees_(args):
     tree_name = pathlib.Path(args.tree).stem
-    tree_name = 'named.tree_' + tree_name + '.nwk'
-    trees = ((f'{args.asr_folder}/{folder}/{tree_name}', folder)
-            for folder in os.listdir(args.asr_folder)
-            if os.path.exists(f'{args.asr_folder}/{folder}/{tree_name}'))
-    if args.test != 0:
-        trees = list(trees)[:args.test]
+    tree_name = f'named.tree_{tree_name}.nwk'
 
-    return trees
+    return [
+        (f'{args.asr_folder}/{folder}/{tree_name}', folder)
+        for folder in os.listdir(args.asr_folder)
+        if os.path.exists(f'{args.asr_folder}/{folder}/{tree_name}')
+    ]
+
+
+def make_pairs(trees, args):
+    if args.query:
+        other_trees = []
+        for tree in trees:
+            if tree[1] == args.query:
+                query = tree
+            else:
+                other_trees.append(tree)
+        pairs = ((query, tree, args.ignore_branch) for tree in other_trees)
+    else:
+        pairs = ((tree1, tree2, args.ignore_branch) for tree1, tree2
+                in combinations(trees, 2))
+    
+    return pairs
 
 
 def run_asa(args):
-    trees = prepare_trees(args)
-    pairs = ((tree1, tree2, args.ignore_branch) for tree1, tree2
-            in combinations(trees, 2))
+    trees = list_asr_trees_(args)
+    pairs = make_pairs(trees, args)
+    if args.test:
+        pairs = islice(pairs, args.test)
+        
     with Pool(processes=args.cores) as process:
         result = pl.DataFrame(process.starmap_async(asa, pairs).get(),
                             schema = weighted_schema,
