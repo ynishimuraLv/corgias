@@ -39,10 +39,17 @@ def load_og_table(args):
     df = pl.read_csv(args.og_table).to_pandas()
     index = df.columns[0]
     df.set_index(index, inplace=True)
+    if args.query:
+        if args.query not in df.columns:
+            logger.error(f"{args.query} is not found in the ortholog table")
+            raise ValueError(f"{args.query} is not found in the ortholog table")
+        query = df[[args.query]]
+        rest = df.drop(columns=args.query)
+        df = pd.concat([query, rest], axis=1)
     if args.test != 0:
-        df = df.iloc[:, :args.test]
-        
-    return df
+        return df.iloc[:, :args.test]
+    else:
+        return df
 
 
 def run_naive(args):
@@ -252,6 +259,7 @@ weighted_schema = { "OG1": pl.Utf8, "OG2": pl.Utf8,
                     "TT": pl.Float64, "TF": pl.Float64,
                     "FT": pl.Float64, "FF": pl.Float64 }
 
+
 def run_rle_cwa(args):
     df = load_og_table(args)
     tree = et.Tree(args.tree, format=1)
@@ -371,39 +379,46 @@ def correct_by_ancestral_state(tree: et.Tree):
     return result
 
 
-def list_asr_trees_(args):
+def list_asr_trees(args):
     tree_name = pathlib.Path(args.tree).stem
     tree_name = f'named.tree_{tree_name}.nwk'
+    
+    if args.query:
+        query_tree = [(f'{args.asr_folder}/{args.query}/{tree_name}', args.query)]
+        other_folders = [ folder for folder in os.listdir(args.asr_folder)
+                        if folder != args.query]
+        other_folders =  [ (f'{args.asr_folder}/{folder}/{tree_name}', folder)
+                            for folder in other_folders 
+                            if (os.path.exists(f'{args.asr_folder}/{folder}/{tree_name}'))]
+        folders = query_tree + other_folders
+    else:
+        folders = [ (f'{args.asr_folder}/{folder}/{tree_name}', folder)
+                        for folder in os.listdir(args.asr_folder)
+                    if os.path.exists(f'{args.asr_folder}/{folder}/{tree_name}') ]
 
-    return [
-        (f'{args.asr_folder}/{folder}/{tree_name}', folder)
-        for folder in os.listdir(args.asr_folder)
-        if os.path.exists(f'{args.asr_folder}/{folder}/{tree_name}')
-    ]
+    if args.test != 0:
+        return folders[:args.test]
+    else:
+        return folders
 
 
 def make_pairs(trees, args):
     if args.query:
-        other_trees = []
-        for tree in trees:
-            if tree[1] == args.query:
-                query = tree
-            else:
-                other_trees.append(tree)
-        pairs = ((query, tree, args.ignore_branch) for tree in other_trees)
+        query = trees.pop(0)
+        pairs = ((query, tree, args.ignore_branch) for tree in trees)
     else:
         pairs = ((tree1, tree2, args.ignore_branch) for tree1, tree2
                 in combinations(trees, 2))
-    
+
     return pairs
 
 
 def run_asa(args):
-    trees = list_asr_trees_(args)
+    trees = list_asr_trees(args)
     pairs = make_pairs(trees, args)
     if args.test:
         pairs = islice(pairs, args.test)
-        
+
     with Pool(processes=args.cores) as process:
         result = pl.DataFrame(process.starmap_async(asa, pairs).get(),
                             schema = weighted_schema,
@@ -426,16 +441,6 @@ def count_transition(og:str, row: NDArray[np.int64]
     return og, transition, num_transition
 
 
-def run_transition(count, gpu: bool, num_blocks: int, N: int):
-    og_names = [ sublist[0] for sublist in count ]
-    t_matrix = np.vstack([ sublist[1] for sublist in count ])
-    num_transition = np.vstack([ sublist[2] for sublist in count ])
-    k = calculate_k(t_matrix, gpu, num_blocks)
-    result = transition_count2df(k, num_transition, og_names, N)
-
-    return result
-
-
 def run_cotr(args):
     df = load_og_table(args)
     tree = et.Tree(args.tree, format=1)
@@ -445,33 +450,42 @@ def run_cotr(args):
     with Pool(processes=args.cores) as process:
         count = process.starmap_async(count_transition, ogs).get()
     num_genomes = len(order) - 1
+    og_names, df, df_T, num_transition, num_transition_query = prepare_matrix(count, args)
+    k = calculate_k(df, df_T, gpu=args.gpu, num_blocks=args.num_blocks)
+    result = transition_count2df(k, og_names, num_transition,
+                                 num_transition_query, num_genomes, args)
     
-    return run_transition(count, args.gpu, args.num_blocks, num_genomes)
+    return result
+    
 
+def transition_count2df(k: np.ndarray, og_names: list[str],  num_transition: np.ndarray, 
+                        num_transition_query: np.ndarray, N: int, args) -> pl.DataFrame:
+    if num_transition_query:
+        return pl.DataFrame({'OG1':[args.query]*len(og_names), 'OG2':og_names,
+                             'k':k, 'num_change1':[num_transition_query]*len(og_names), 
+                             'num_change2':num_transition.flatten(), 'N':[N]*len(og_names)})
+    else:
+        indices = flatten_indices(k)
+        og_names = pl.DataFrame(og_names).with_row_count('index').select(
+                pl.col('index').cast(pl.Int64), pl.col('column_0').alias('OG'))
+        num_transition = pl.DataFrame(num_transition).with_row_count('index').select(
+                    pl.col('index').cast(pl.Int64), pl.col('column_0').alias('num_transition'))
 
-def transition_count2df(k: NDArray[np.int64], num_transition: int, og_names: list[str], N: int
-                 ) -> pl.DataFrame:
-    indices = flatten_indices(k)
-    og_names = pl.DataFrame(og_names).with_row_count('index').select(
-               pl.col('index').cast(pl.Int64), pl.col('column_0').alias('OG'))
-    num_transition = pl.DataFrame(num_transition).with_row_count('index').select(
-                 pl.col('index').cast(pl.Int64), pl.col('column_0').alias('num_transition'))
-
-    indices = indices.join(
-             og_names, left_on='column_0', right_on='index'
-             ).rename({'OG':'OG1'}).join(
-             og_names, left_on='column_1', right_on='index'
-             ).rename({'OG':'OG2'}).join(
-             num_transition, left_on='column_0', right_on='index'
-             ).rename({'num_transition':'num_change1'}).join(
-             num_transition, left_on='column_1', right_on='index'
-             ).rename({'num_transition':'num_change2'}).select(
-             ['OG1', 'OG2', 'num_change1', 'num_change2']
-             )
-    k = uppermatrix2vector(k)
-    k = pl.DataFrame({'k':k})
-    result = pl.concat([indices, k], how='horizontal')
-    df = result.with_columns(N).rename({'literal':'N'})
+        indices = indices.join(
+                og_names, left_on='column_0', right_on='index'
+                ).rename({'OG':'OG1'}).join(
+                og_names, left_on='column_1', right_on='index'
+                ).rename({'OG':'OG2'}).join(
+                num_transition, left_on='column_0', right_on='index'
+                ).rename({'num_transition':'num_change1'}).join(
+                num_transition, left_on='column_1', right_on='index'
+                ).rename({'num_transition':'num_change2'}).select(
+                ['OG1', 'OG2', 'num_change1', 'num_change2']
+                )
+        k = uppermatrix2vector(k)
+        k = pl.DataFrame({'k':k})
+        result = pl.concat([indices, k], how='horizontal')
+        df = result.with_columns(N).rename({'literal':'N'})
 
     return df
 
@@ -480,7 +494,6 @@ def count_change(tree: et.TreeNode, og: str
                  ) -> tuple[str, NDArray[np.int64], int]:
     tree = et.Tree(tree, format=1)
     transition = []
-#    internal_node = []
     for node in tree.traverse():
         if not node.is_leaf():
             parent_state = getattr(node, og)
@@ -490,40 +503,60 @@ def count_change(tree: et.TreeNode, og: str
                     transition.append(int(float(child_state)) - int(float(parent_state)))
                 except ValueError:
                     transition.append(0)
-#            internal_node.append(transition[-1] + transition[-2])
 
-#    num_transition = np.count_nonzero(internal_node)
     num_transition = np.count_nonzero(transition)
 
     return og, transition, num_transition
 
 
-def calculate_k(t_matrix: pl.DataFrame, gpu: bool = False,
-                num_blocks: int = 0) -> NDArray[np.int64]:
+def calculate_k(df: np.ndarray, df_T: np.ndarray,
+                gpu: bool = False, num_blocks: int = 0) -> NDArray[np.int64]:
     if gpu:
         if num_blocks == 0:
-
-            df = cp.asarray(t_matrix, dtype=cp.int16)
-            df_T = cp.asarray(t_matrix.transpose(), dtype=cp.int16)
+            df = cp.asarray(df, dtype=cp.int16)
+            df_T = cp.asarray(df_T, dtype=cp.int16)
             k = cp.asnumpy(cp.dot(df, df_T))
         else:
-            block_size = t_matrix.shape[0] // num_blocks
-            k = block_dot(t_matrix, t_matrix.transpose(), block_size)
+            block_size = df.shape[0] // num_blocks
+            k = block_dot(df,df_T, block_size)
     else:
-        k = np.dot(t_matrix, t_matrix.transpose())
+        k = np.dot(df, df_T)
 
     return k
 
 
+def prepare_matrix(count, args):
+    og_names = [ sublist[0] for sublist in count ]
+    t_matrix = np.vstack([ sublist[1] for sublist in count ])
+    num_transition = np.vstack([ sublist[2] for sublist in count ])
+    num_transition_query = None
+    
+    if args.query:
+        df = t_matrix[1:]
+        df_T = t_matrix[0]
+        num_transition_query = num_transition[0][0]
+        num_transition = num_transition[1:]
+        og_names.pop(0)
+    else:
+        df = t_matrix
+        df_T = t_matrix.T
+
+    return og_names, df, df_T, num_transition, num_transition_query
+
+
 def run_sev(args):
-    trees = prepare_trees(args) 
+    trees = list_asr_trees(args)
     with Pool(processes=args.cores) as process:
         result = process.starmap_async(count_change, trees)
         count = result.get()
     tree = et.Tree(args.tree, format=1)
     num_internal_nodes = len(tree.get_leaves()) - 1
-    return run_transition(count, args.gpu, args.num_blocks,
-                            num_internal_nodes)
+    og_names, df, df_T, num_transition, num_transition_query = prepare_matrix(count, args)
+    k = calculate_k(df, df_T, gpu=args.gpu, num_blocks=args.num_blocks)
+    result = transition_count2df(k, og_names, num_transition, 
+                                 num_transition_query, num_internal_nodes, args)
+    
+    return result
 
 
 def validate_args(args):
@@ -567,5 +600,4 @@ def run_profiling(args, options):
 
     method_runner = METHOD_RUNNERS[args.method]
     result = method_runner(args)
-
     result.write_csv(args.output)
