@@ -87,7 +87,7 @@ All vs all columns (orthologs) comparison is performed by default. If your inter
 | `-c, --cores CORES`     | Number of CPU cores to use.                                                |
 | `--ignore_branch`       | Ignore branch lengths in the tree.                                         |
 | `--gpu`                 | Use GPU for computation.                                                  |
-| `-query, --query column` | Perform the specified column vs the others comparison.
+| `-query, --query COLUMN` | Perform a specified column vs the others comparison.
 | `-nb, --num_blocks NUM_BLOCKS` | Number of blocks for GPU computation.                               |
 | `--test TEST`           | Number of orthologs to process in test mode.
 
