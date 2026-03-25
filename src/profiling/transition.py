@@ -3,7 +3,7 @@ import polars as pl
 import ete3 as et
 from multiprocessing import Pool
 from numpy.typing import NDArray
-from .common import load_og_table, flatten_indices, list_asr_trees
+from .common import load_og_table, flatten_indices, list_asr_trees, uppermatrix2vector
 from .gpu_utils import cp, block_dot
 
 
@@ -58,8 +58,8 @@ def transition_count2df(k: np.ndarray, og_names: list[str],  num_transition: np.
                         num_transition_query: np.ndarray, N: int, args) -> pl.DataFrame:
     if num_transition_query:
         return pl.DataFrame({'OG1':[args.query]*len(og_names), 'OG2':og_names,
-                             'k':k, 'num_change1':[num_transition_query]*len(og_names), 
-                             'num_change2':num_transition.flatten(), 'N':[N]*len(og_names)})
+                             'num_change1':[num_transition_query]*len(og_names), 
+                             'num_change2':num_transition.flatten(), 'k':k, 'N':[N]*len(og_names)})
     else:
         indices = flatten_indices(k)
         og_names = pl.DataFrame(og_names).with_row_count('index').select(

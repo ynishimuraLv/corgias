@@ -27,7 +27,7 @@ def run_naive(args):
     else:
         tt, tf, ft, ff = naive_cpu(df, df_flipped, df_T, df_T_flipped, args.cores)
 
-    og_names = df_T.index
+    og_names = list(df_T.index)
     if args.query:
         return pl.DataFrame({'OG1':[args.query]*len(og_names), 'OG2':og_names,
                              'TT':tt, 'TF':tf, 'FT':ft, 'FF':ff})
@@ -80,8 +80,6 @@ def naive_cpu(df: pd.DataFrame, df_flipped: pd.DataFrame, df_T: pd.DataFrame,
         tt, tf, ft, ff = process.starmap(np.dot, jobs)
 
     return tt, tf, ft, ff
-
-
 
 
 def naivecount2matrix(tt: NDArray[np.int64], tf: NDArray[np.int64],
