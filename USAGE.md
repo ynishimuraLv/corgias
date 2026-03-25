@@ -73,6 +73,8 @@ usage: corgias profiling [-h] -m {naive,rle,cwa,asa,cotr,sev} [-og OG_TABLE] [-a
 
   Note: with --test 5, Run test will start using five orthologs.
 ```
+All vs all columns (orthologs) comparison is performed by default. If your interestied in the relationship among a focused columns and the others, you can run one-vs-all comparison using the `-q` option.
+
 ### Options
 | Option                  | Description                                                                 |
 |-------------------------|-----------------------------------------------------------------------------|
@@ -85,6 +87,7 @@ usage: corgias profiling [-h] -m {naive,rle,cwa,asa,cotr,sev} [-og OG_TABLE] [-a
 | `-c, --cores CORES`     | Number of CPU cores to use.                                                |
 | `--ignore_branch`       | Ignore branch lengths in the tree.                                         |
 | `--gpu`                 | Use GPU for computation.                                                  |
+| `-query, --query column` | Perform the specified column vs the others comparison.
 | `-nb, --num_blocks NUM_BLOCKS` | Number of blocks for GPU computation.                               |
 | `--test TEST`           | Number of orthologs to process in test mode.
 
