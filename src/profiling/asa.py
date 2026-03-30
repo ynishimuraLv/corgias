@@ -44,7 +44,7 @@ def asa(tree_og1: tuple[str, str],
     else:
         result = correct_by_ancestral_state(merged_tree)
 
-    return og1, og2, result['1'], result['2'], result['3'], result['0']
+    return og1, og2, result[3], result[1], result[2], result[0]
 
 def asa_by_bit(tree_og1: tuple[str, str],
         tree_og2: tuple[str, str],
@@ -55,7 +55,7 @@ def asa_by_bit(tree_og1: tuple[str, str],
     og2 = tree_og2[1]
     merged_tree = merge_tree(tree1, og1, tree2, og2)
     if ignore_branch:
-        result = count_by_ancestral_state_by_bit(merged_tree)
+        result = count_by_ancestral_state(merged_tree)
     else:
         result = correct_by_ancestral_state(merged_tree)
     return og1, og2, result[3], result[1], result[2], result[0]
@@ -66,25 +66,11 @@ def merge_tree(tree1: et.Tree, og1: str,
     for node, node1, node2 in zip(tree.traverse(),
                                   tree1.traverse(),
                                   tree2.traverse()):
-        node.trait = mix_trait2bit(getattr(node1, og1), getattr(node2, og2))
+        node.trait = trait2bit(getattr(node1, og1), getattr(node2, og2))
     return tree
 
 
-def mix_trait(og1: str, og2: str):
-#    if og1 is None or og2 is None:
-#        return '4'
-    if og1 == '0' and og2 == '0':
-        return '0'
-    elif og1 == '1' and og2 == '1':
-        return '1'
-    elif og1 == '1' and og2 == '0':
-        return '2'
-    elif og1 == '0' and og2 == '1':
-        return '3'
-    else:
-        return '4'
-
-def mix_trait2bit(og1: str, og2: str):
+def trait2bit(og1: str, og2: str):
     if og1 == '0' and og2 == '0':
         return 0b0001
     elif og1 == '1' and og2 == '1':
@@ -101,46 +87,20 @@ def correct_genomes(node: et.Tree) -> float:
     if node.num_child == 1:
         return 1
     else:
+        if node.denominator == 0:
+            return 0
         return node.num_child * (node.pathlength / node.denominator)
-
+    
 
 def count_by_ancestral_state(tree: et.Tree):
-    result = { str(i):0 for i in range(4) }
-    for node in tree.traverse(strategy='postorder'):
-        node.state = node.trait
-        if node.is_leaf():
-            node.num_child = 1
-        else:
-            node.num_child = 0
-            if node.state in '0123':
-                for child in node.get_children():
-                    if node.state == child.state:
-                        node.num_child = 1
-                    else:
-                        if child.num_child:
-                            result[child.state] += 1
-            else:
-                for child in node.get_children():
-                    if child.num_child:
-                        result[child.state] += 1
-
-    if tree.num_child:
-        result[tree.state] += 1
-
-    return result
-
-def count_by_ancestral_state_by_bit(tree: et.Tree):
     result = [0, 0, 0, 0]
 
     for node in tree.traverse("postorder"):
-
         if node.is_leaf():
             continue
 
         for child in node.children:
-
             diff = child.trait & ~node.trait
-
             while diff:
                 i = (diff & -diff).bit_length() - 1
                 result[i] += 1
@@ -156,39 +116,42 @@ def count_by_ancestral_state_by_bit(tree: et.Tree):
     return result
 
 
-
 def correct_by_ancestral_state(tree: et.Tree):
-    result = { str(i):0 for i in range(4) }
+    result = [0, 0, 0, 0]
+    
     for node in tree.traverse(strategy='postorder'):
-        node.state = node.trait
         if node.is_leaf():
             node.num_child = 1
             node.pathlength = node.dist
             node.denominator = node.dist
-        else:
-            node.num_child = 0
-            node.pathlength = 0
-            node.denominator = 0
-            if node.state in '0123':
-                for child in node.get_children():
-                    if node.state == child.state:
-                        node.num_child += child.num_child
-                        node.pathlength += child.pathlength
-                        node.denominator += child.denominator
-                    else:
-                        if child.num_child:
-                            result[child.state] += correct_genomes(child)
-                if node.num_child:
-                    node.denominator += node.dist * node.num_child
-                    node.pathlength += node.dist
-            else:
-                for child in node.get_children():
-                    if child.num_child:
-                        result[child.state] += correct_genomes(child)
+            continue
+
+        node.num_child = 0
+        node.pathlength = 0
+        node.denominator = 0
+        
+        for child in node.children:
+            diff = child.trait & ~node.trait
+            if not diff:
+                node.num_child += child.num_child
+                node.pathlength += child.pathlength
+                node.denominator += child.denominator
+
+            while diff:
+                i = (diff & -diff).bit_length() - 1
+                result[i] += correct_genomes(child)
+                diff &= diff - 1
+
+        if node.num_child:
+            node.denominator += node.dist * node.num_child
+            node.pathlength += node.dist
+
 
     if tree.num_child:
         tree.denominator += tree.dist * tree.num_child
         tree.pathlength += tree.dist
-        result[tree.state] += correct_genomes(tree)
+        if tree.trait:
+            i = tree.trait.bit_length() - 1
+            result[i] += correct_genomes(tree)
 
     return result
