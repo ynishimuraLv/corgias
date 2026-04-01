@@ -13,7 +13,7 @@ def run_asa(args):
 
 
     with Pool(processes=args.cores) as process:
-        result = pl.DataFrame(process.starmap_async(asa_by_bit, pairs).get(),
+        result = pl.DataFrame(process.starmap_async(asa, pairs).get(),
                             schema = weighted_schema,
                             orient='row')
 
@@ -43,22 +43,8 @@ def asa(tree_og1: tuple[str, str],
         result = count_by_ancestral_state(merged_tree)
     else:
         result = correct_by_ancestral_state(merged_tree)
-
     return og1, og2, result[3], result[1], result[2], result[0]
 
-def asa_by_bit(tree_og1: tuple[str, str],
-        tree_og2: tuple[str, str],
-        ignore_branch: bool = False):
-    tree1 = et.Tree(tree_og1[0], format=1)
-    tree2 = et.Tree(tree_og2[0], format=1)
-    og1 = tree_og1[1]
-    og2 = tree_og2[1]
-    merged_tree = merge_tree(tree1, og1, tree2, og2)
-    if ignore_branch:
-        result = count_by_ancestral_state(merged_tree)
-    else:
-        result = correct_by_ancestral_state(merged_tree)
-    return og1, og2, result[3], result[1], result[2], result[0]
 
 def merge_tree(tree1: et.Tree, og1: str,
                tree2: et.Tree, og2: str):
