@@ -18,7 +18,7 @@ def main():
     elif args.subparser_name == 'profiling':
         run_profiling(args, options)
     elif args.subparser_name == 'stat':
-        run_stat.run_stat(args, options)
+        run_stat(args, options)
 
 
 if __name__ == '__main__':
