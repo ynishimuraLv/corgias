@@ -9,6 +9,15 @@ from src.profiling.runner import run_profiling
 
 def main():
     args, options = parser.parse_arguments()
+
+    if args.log_file is None:
+        if args.subparser_name == 'asr':
+            args.log_file = f"asr_{args.prediction_method}.log"
+        elif args.subparser_name == 'profiling':
+            args.log_file = f"profiling_{args.method}.log"
+        elif args.subparser_name == 'stat':
+            args.log_file = f"stat_{args.statistical_test}_{args.threthold}.log"
+
     setup_logger(args.log_file, args.verbose, args.quiet)
 
     logging.info("CORGIAS started")

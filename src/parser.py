@@ -21,7 +21,7 @@ def parse_arguments():
         add_help=False,
         description = 'CORGIAS'
     )
-    parent_parser.add_argument("-l", "--log-file", default="log.txt")
+    parent_parser.add_argument("-l", "--log-file", default=None)
     parent_parser.add_argument("--verbose", action="store_true")
     parent_parser.add_argument("--quiet", action="store_true")
 
