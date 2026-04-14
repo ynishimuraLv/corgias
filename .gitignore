@@ -9,3 +9,5 @@ test/
 
 # Virtual environments
 .venv*
+
+CLAUDE.md
