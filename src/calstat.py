@@ -62,13 +62,13 @@ def run_stat(args, options):
                                     schema=['OG1', 'OG2', 'direction', 'pvalue'],
                                     orient='row')
 
-    logger.debug(f'Finished statistical tests. Adjusting p-values with {args.statistical_test} method and threshold of {args.threthold}.')
+    logger.info(f'Adjusting p-values with {args.statistical_test} method and threshold of {args.threthold}.')
     qvalues = multipletests(result['pvalue'], method=args.statistical_test,
                             alpha=args.threthold)
     result = result.with_columns(pl.Series('qvalue', qvalues[1]),
                                     pl.Series('signif', qvalues[0]))
     if args.only_signif:
-        logger.debug('Filtering results to include only significant pairs.')
+        logger.info('Filtering results to include only significant pairs.')
         result = result.filter(pl.col('signif'))
     result = result.sort(by='qvalue')
     result.write_csv(args.output)
