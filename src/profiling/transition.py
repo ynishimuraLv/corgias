@@ -5,6 +5,7 @@ import polars as pl
 import ete3 as et
 from multiprocessing import Pool
 from numpy.typing import NDArray
+from tqdm import tqdm
 from .common import load_og_table, flatten_indices, list_asr_trees, uppermatrix2vector
 from .gpu_utils import cp, block_dot
 
@@ -20,8 +21,11 @@ def run_cotr(args):
     order = [ leaf.name for leaf in tree.get_leaves() ]
     df = df.loc[order]
     ogs = ((i, row) for i, row in df.T.iterrows())
-    with Pool(processes=args.cores) as process:
-        count = process.starmap_async(count_transition, ogs).get()
+    with Pool(processes=args.cores) as pool:
+        with tqdm(total=len(df.columns), disable=args.quiet) as pbar:
+            futures = [pool.apply_async(count_transition, og, callback=lambda _: pbar.update())
+                       for og in ogs]
+            count = [f.get() for f in futures]
     num_genomes = len(order) - 1
     og_names, df, df_T, num_transition, num_transition_query = prepare_matrix(count, args)
     k = calculate_k(df, df_T, gpu=args.gpu, num_blocks=args.num_blocks)
@@ -98,9 +102,11 @@ def run_sev(args):
     n = len(trees)
     num_pairs = n - 1 if args.query else math.comb(n, 2)
     logger.info(f"Processing {num_pairs} OG pairs.")
-    with Pool(processes=args.cores) as process:
-        result = process.starmap_async(count_change, trees)
-        count = result.get()
+    with Pool(processes=args.cores) as pool:
+        with tqdm(total=len(trees), disable=args.quiet) as pbar:
+            futures = [pool.apply_async(count_change, tree, callback=lambda _: pbar.update())
+                       for tree in trees]
+            count = [f.get() for f in futures]
     tree = et.Tree(args.tree, format=1)
     num_internal_nodes = len(tree.get_leaves()) - 1
     og_names, df, df_T, num_transition, num_transition_query = prepare_matrix(count, args)

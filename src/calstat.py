@@ -1,6 +1,7 @@
 import logging
 import polars as pl
 from multiprocessing import Pool
+from tqdm import tqdm
 
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
@@ -47,9 +48,12 @@ def run_stat(args, options):
         df = df.with_columns(pl.lit(direction).alias('alternative'))
         rows = df.select('OG1', 'OG2', 'TT', 'TF', 'FT', 'FF', 'alternative').iter_rows()
         logger.info(f'Running statistical tests of {args.method} results with {args.direction} direction for {df.shape[0]} pairs.')
-        with Pool(processes=args.cores) as process:
-            result = pl.DataFrame(process.starmap_async(run_test4weighted, rows).get(),
-                                    schema=['OG1', 'OG2', 'odds', 'pvalue'], orient='row')
+        with Pool(processes=args.cores) as pool:
+            with tqdm(total=df.shape[0], disable=args.quiet) as pbar:
+                futures = [pool.apply_async(run_test4weighted, row, callback=lambda _: pbar.update())
+                           for row in rows]
+                result = pl.DataFrame([f.get() for f in futures],
+                                      schema=['OG1', 'OG2', 'odds', 'pvalue'], orient='row')
     elif args.method in transition_method:
         if args.direction == 'correlation':
             df = df.filter(pl.col('k') > 0)
@@ -57,10 +61,12 @@ def run_stat(args, options):
             df = df.filter(pl.col('k') < 0)
         rows = df.iter_rows()
         logger.info(f'Running statistical tests of {args.method} results with {args.direction} direction for {df.shape[0]} pairs.')
-        with Pool(processes=args.cores) as process:
-            result = pl.DataFrame(process.starmap_async(run_test4transition, rows).get(),
-                                    schema=['OG1', 'OG2', 'direction', 'pvalue'],
-                                    orient='row')
+        with Pool(processes=args.cores) as pool:
+            with tqdm(total=df.shape[0], disable=args.quiet) as pbar:
+                futures = [pool.apply_async(run_test4transition, row, callback=lambda _: pbar.update())
+                           for row in rows]
+                result = pl.DataFrame([f.get() for f in futures],
+                                      schema=['OG1', 'OG2', 'direction', 'pvalue'], orient='row')
 
     logger.info(f'Adjusting p-values with {args.statistical_test} method and threshold of {args.threthold}.')
     qvalues = multipletests(result['pvalue'], method=args.statistical_test,

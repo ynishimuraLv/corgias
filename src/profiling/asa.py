@@ -4,6 +4,7 @@ import polars as pl
 import ete3 as et
 from itertools import combinations, islice
 from multiprocessing import Pool
+from tqdm import tqdm
 from .common import list_asr_trees, weighted_schema
 
 logger = logging.getLogger(__name__)
@@ -16,12 +17,15 @@ def run_asa(args):
     logger.info(f"Processing {num_pairs} OG pairs.")
     pairs = make_pairs(trees, args)
     if args.test:
+        num_pairs = min(num_pairs, args.test)
         pairs = islice(pairs, args.test)
 
-    with Pool(processes=args.cores) as process:
-        result = pl.DataFrame(process.starmap_async(asa, pairs).get(),
-                            schema = weighted_schema,
-                            orient='row')
+    with Pool(processes=args.cores) as pool:
+        with tqdm(total=num_pairs, disable=args.quiet) as pbar:
+            futures = [pool.apply_async(asa, pair, callback=lambda _: pbar.update())
+                       for pair in pairs]
+            result = pl.DataFrame([f.get() for f in futures],
+                                  schema=weighted_schema, orient='row')
 
     return result
 

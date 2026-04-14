@@ -8,6 +8,7 @@ import pandas as pd
 import polars as pl
 from datetime import datetime
 from multiprocessing import Pool
+from tqdm import tqdm
 
 
 
@@ -44,11 +45,14 @@ class PastMLRunner:
         return result.returncode, result.stdout, result.stderr
 
 
-    def run_parallel(self, files: list[str]):
+    def run_parallel(self, files: list[str], quiet: bool = False):
         logger = logging.getLogger(__name__)
         logger.info(f'Starting parallel ASR with {self.cores} cores for {len(files)} jobs.')
-        with Pool(processes=self.cores) as process:
-            process.starmap(self.run_pastml, files)
+        with Pool(processes=self.cores) as pool:
+            with tqdm(total=len(files), disable=quiet) as pbar:
+                futures = [pool.apply_async(self.run_pastml, f, callback=lambda _: pbar.update())
+                           for f in files]
+                [f.get() for f in futures]
 
 
 logger = logging.getLogger(__name__)
@@ -111,7 +115,7 @@ def run_asr(args, options):
         logger.info('PastML check passed successfully.')
 
     logger.info(f'Running ASR in parrallel with {args.cores} CPUs.')
-    asr_runner.run_parallel(jobs)
+    asr_runner.run_parallel(jobs, quiet=args.quiet)
 
     logger.info('ASR completed successfully.')
     

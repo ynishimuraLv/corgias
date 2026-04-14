@@ -114,30 +114,45 @@ wheels = [
 ]
 
 [[package]]
+name = "colorama"
+version = "0.4.6"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93a6792e2acffb9d9d5cb0a5cfd8802644b7b1c9a02e4/colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44", size = 27697 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6", size = 25335 },
+]
+
+[[package]]
 name = "corgias"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "ete3" },
     { name = "pastml" },
-    { name = "polars" },
+    { name = "polars", marker = "platform_machine != 'arm64'" },
+    { name = "polars-lts-cpu", marker = "platform_machine == 'arm64'" },
     { name = "pyarrow" },
     { name = "statsmodels" },
+    { name = "tqdm" },
 ]
 
 [package.optional-dependencies]
 gpu = [
     { name = "cupy-cuda12x" },
+    { name = "nvidia-cublas-cu12" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "cupy-cuda12x", marker = "extra == 'gpu'", specifier = ">=13.4.1" },
     { name = "ete3" },
+    { name = "nvidia-cublas-cu12", marker = "extra == 'gpu'", specifier = ">=12,<13" },
     { name = "pastml" },
-    { name = "polars", specifier = ">=1.26.0" },
+    { name = "polars", marker = "platform_machine != 'arm64'", specifier = ">=1.26.0" },
+    { name = "polars-lts-cpu", marker = "platform_machine == 'arm64'", specifier = ">=1.26.0" },
     { name = "pyarrow", specifier = ">=19.0.1" },
     { name = "statsmodels", specifier = ">=0.14.4" },
+    { name = "tqdm", specifier = ">=4.0.0" },
 ]
 provides-extras = ["gpu"]
 
@@ -360,6 +375,29 @@ wheels = [
 ]
 
 [[package]]
+name = "nvidia-cublas-cu12"
+version = "12.9.2.10"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "nvidia-cuda-nvrtc-cu12" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f7/a2/c96163a0fff1839c0c9548bbdeae7b853b867009e33b9b9264adc238b1cf/nvidia_cublas_cu12-12.9.2.10-py3-none-manylinux_2_27_aarch64.whl", hash = "sha256:5572131a59c3eebeeb1c4c8144f772d49372c20124916e072a0e3fc30df421d5", size = 575012079 },
+    { url = "https://files.pythonhosted.org/packages/cb/c0/0a517bfe63ccd3b92eb254d264e28fca3c7cab75d07daea315250fb1bf73/nvidia_cublas_cu12-12.9.2.10-py3-none-manylinux_2_27_x86_64.whl", hash = "sha256:e4f53a8ca8c5d6e8c492d0d0a3d565ecb59a751b19cfdaa4f6da0ab2104c1702", size = 581240110 },
+    { url = "https://files.pythonhosted.org/packages/20/e2/fc9a0e985249d873150276d5afb02e39a66817fedbf1a385724393e505ed/nvidia_cublas_cu12-12.9.2.10-py3-none-win_amd64.whl", hash = "sha256:623f43027d40d44ceadf0043f002bd25cf353e8f13ce90b9a87057019f560661", size = 553162896 },
+]
+
+[[package]]
+name = "nvidia-cuda-nvrtc-cu12"
+version = "12.9.86"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b8/85/e4af82cc9202023862090bfca4ea827d533329e925c758f0cde964cb54b7/nvidia_cuda_nvrtc_cu12-12.9.86-py3-none-manylinux2010_x86_64.manylinux_2_12_x86_64.whl", hash = "sha256:210cf05005a447e29214e9ce50851e83fc5f4358df8b453155d5e1918094dcb4", size = 89568129 },
+    { url = "https://files.pythonhosted.org/packages/64/eb/c2295044b8f3b3b08860e2f6a912b702fc92568a167259df5dddb78f325e/nvidia_cuda_nvrtc_cu12-12.9.86-py3-none-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:096d4de6bda726415dfaf3198d4f5c522b8e70139c97feef5cd2ca6d4cd9cead", size = 44528905 },
+    { url = "https://files.pythonhosted.org/packages/52/de/823919be3b9d0ccbf1f784035423c5f18f4267fb0123558d58b813c6ec86/nvidia_cuda_nvrtc_cu12-12.9.86-py3-none-win_amd64.whl", hash = "sha256:72972ebdcf504d69462d3bcd67e7b81edd25d0fb85a2c46d3ea3517666636349", size = 76408187 },
+]
+
+[[package]]
 name = "packaging"
 version = "24.2"
 source = { registry = "https://pypi.org/simple" }
@@ -458,6 +496,17 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/e6/eb/b420131563a42ac0866224aa6284a356107d036c32d825c5478767a1446e/polars-1.26.0-cp39-abi3-manylinux_2_24_aarch64.whl", hash = "sha256:110d6987d37ae954a5ef16d739fb717df9d39b144790d12d98fb3e72ed35621c", size = 32569800 },
     { url = "https://files.pythonhosted.org/packages/e9/8d/b28ae5d63a4bafdfe81d132efc6b8d076ef2c866ecbf5d24ca3b1f53b88b/polars-1.26.0-cp39-abi3-win_amd64.whl", hash = "sha256:189a58aaf393003515fa6d83e2dea815a2b448265f2007a926274ed12672583c", size = 35617074 },
     { url = "https://files.pythonhosted.org/packages/af/21/7a76c58203f0806cb5b1155e4994693e618d4de5ca6a34388ae85267ccc4/polars-1.26.0-cp39-abi3-win_arm64.whl", hash = "sha256:58db2dce39cad5f8fc8e8c5c923a250eb21eff4146b03514d570d1c205a4874c", size = 31895936 },
+]
+
+[[package]]
+name = "polars-lts-cpu"
+version = "1.33.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f4/93/a0c4200a5e0af2eee31ea79330cb1f5f4c58f604cb3de352f654e2010c81/polars_lts_cpu-1.33.1.tar.gz", hash = "sha256:0a5426d95ec9eec937a56d3e7cf7911a4b5486c42f4dbbcc9512aa706039322c", size = 4822741 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/81/e2/dc77b81650ba0c631c06f05d8e81faacee87730600fceca372273facf77b/polars_lts_cpu-1.33.1-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:37cf3a56cf447c69cfb3f9cd0e714d5b0c754705d7b497b9ab86cbf56e36b3e7", size = 35638895 },
+    { url = "https://files.pythonhosted.org/packages/54/31/0474c14dce2c0507bea40069daafb848980ba7c351ad991908e51ac895fb/polars_lts_cpu-1.33.1-cp39-abi3-manylinux_2_24_aarch64.whl", hash = "sha256:64574c784380b37167b3db3a7cfdb9839cd308e89b8818859d2ffb34a9c896b2", size = 36685020 },
+    { url = "https://files.pythonhosted.org/packages/ce/ad/bf3db68d30ac798ca31c80624709a0c03aa890e2e20e5ca987d7e55fcfc2/polars_lts_cpu-1.33.1-cp39-abi3-win_arm64.whl", hash = "sha256:c99ab56b059cee6bcabe9fb89e97f5813be1012a2251bf77f76e15c2d1cba934", size = 35445244 },
 ]
 
 [[package]]
@@ -619,6 +668,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/fe/2a/55c5b5c5e5124a202ea3fe0bcdbdeceaf91b4ec6164b8434acb9dd97409c/statsmodels-0.14.4-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1322286a7bfdde2790bf72d29698a1b76c20b8423a55bdcd0d457969d0041f72", size = 10723228 },
     { url = "https://files.pythonhosted.org/packages/4f/76/67747e49dc758daae06f33aad8247b718cd7d224f091d2cd552681215bb2/statsmodels-0.14.4-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:e31b95ac603415887c9f0d344cb523889cf779bc52d68e27e2d23c358958fec7", size = 10859503 },
     { url = "https://files.pythonhosted.org/packages/1d/eb/cb8b01f5edf8f135eb3d0553d159db113a35b2948d0e51eeb735e7ae09ea/statsmodels-0.14.4-cp313-cp313-win_amd64.whl", hash = "sha256:81030108d27aecc7995cac05aa280cf8c6025f6a6119894eef648997936c2dd0", size = 9817574 },
+]
+
+[[package]]
+name = "tqdm"
+version = "4.67.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/09/a9/6ba95a270c6f1fbcd8dac228323f2777d886cb206987444e4bce66338dd4/tqdm-4.67.3.tar.gz", hash = "sha256:7d825f03f89244ef73f1d4ce193cb1774a8179fd96f31d7e1dcde62092b960bb", size = 169598 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/16/e1/3079a9ff9b8e11b846c6ac5c8b5bfb7ff225eee721825310c91b3b50304f/tqdm-4.67.3-py3-none-any.whl", hash = "sha256:ee1e4c0e59148062281c49d80b25b67771a127c85fc9676d3be5f243206826bf", size = 78374 },
 ]
 
 [[package]]

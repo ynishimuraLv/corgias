@@ -7,6 +7,7 @@ import ete3 as et
 from itertools import groupby, combinations
 from collections import Counter
 from multiprocessing import Pool
+from tqdm import tqdm
 from .common import load_og_table, count2bin, weighted_schema
 
 logger = logging.getLogger(__name__)
@@ -14,12 +15,13 @@ logger = logging.getLogger(__name__)
 
 class RLE_CWA:
     def __init__(self, df: pd.DataFrame, method: str,
-                 tree: et.Tree, cores: int, query: str):
+                 tree: et.Tree, cores: int, query: str, quiet: bool = False):
         self.df = df.map(count2bin)
         self.method = method
         self.tree = tree
         self.cores = cores
         self.query = query
+        self.quiet = quiet
         if method == 'rle':
             order = [ leaf.name for leaf in self.tree.get_leaves() ]
             self.df = self.df.loc[order]
@@ -83,8 +85,11 @@ class RLE_CWA:
             self.tree.resolve_polytomy()
             run_method = self.cwa
 
-        with Pool(processes=self.cores) as process:
-            result = process.starmap_async(run_method, pairs).get()
+        with Pool(processes=self.cores) as pool:
+            with tqdm(total=num_pairs, disable=self.quiet) as pbar:
+                futures = [pool.apply_async(run_method, pair, callback=lambda _: pbar.update())
+                           for pair in pairs]
+                result = [f.get() for f in futures]
 
         return result
 
@@ -92,6 +97,6 @@ class RLE_CWA:
 def run_rle_cwa(args):
     df = load_og_table(args)
     tree = et.Tree(args.tree, format=1)
-    profiler = RLE_CWA(df, args.method, tree, cores=args.cores, query=args.query)
+    profiler = RLE_CWA(df, args.method, tree, cores=args.cores, query=args.query, quiet=args.quiet)
     result = profiler.run_paralell()
     return pl.DataFrame(result, schema = weighted_schema, orient='row')
