@@ -34,15 +34,19 @@ class PastMLRunner:
         outfile = file.split('/')[-1]
         command = self.command + ['-d', file, '--work_dir', f'{self.work_dir}/{outfile}']
         logger.debug(f"Running Ancestral state reconstruction of {file}")
-        
-        result = subprocess.run(command, 
+        logger.debug(f"Executing: {' '.join(command)}")
+
+        result = subprocess.run(command,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
                                 text=True)
+        logger.debug(f"PastML finished with return code {result.returncode} for {file}")
         return result.returncode, result.stdout, result.stderr
 
 
     def run_parallel(self, files: list[str]):
+        logger = logging.getLogger(__name__)
+        logger.info(f'Starting parallel ASR with {self.cores} cores for {len(files)} jobs.')
         with Pool(processes=self.cores) as process:
             process.starmap(self.run_pastml, files)
 
@@ -55,9 +59,10 @@ def run_asr(args, options):
     index_col = df.columns[int(args.id_index)]
     df.set_index(index_col, inplace=True)
     logger.info(f'Loaded data with {df.shape[0]} rows and {df.shape[1]} columns.')
-    df_type_check = df.dtypes.apply(pd.api.types.is_integer_dtype).all()
-    if not df_type_check:
-        logger.error('Input data includes non Integer columns')
+    df_type_check = df.dtypes.apply(pd.api.types.is_integer_dtype)
+    if not df_type_check.all():
+        non_int_cols = df_type_check[~df_type_check].index.tolist()
+        logger.error(f'Input data includes non Integer columns: {non_int_cols}')
         raise ValueError('Input data must be integer')
   
     df = df.where(df == 0, 1)
