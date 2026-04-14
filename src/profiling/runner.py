@@ -45,5 +45,6 @@ def run_profiling(args, options):
         sys.exit(1)
 
     method_runner = METHOD_RUNNERS[args.method]
+    logger.info(f"Selected method: {args.method}")
     result = method_runner(args)
     result.write_csv(args.output)

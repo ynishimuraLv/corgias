@@ -1,12 +1,19 @@
+import logging
+import math
 import polars as pl
 import ete3 as et
 from itertools import combinations, islice
 from multiprocessing import Pool
 from .common import list_asr_trees, weighted_schema
 
+logger = logging.getLogger(__name__)
+
 
 def run_asa(args):
     trees = list_asr_trees(args)
+    n = len(trees)
+    num_pairs = n - 1 if args.query else math.comb(n, 2)
+    logger.info(f"Processing {num_pairs} OG pairs.")
     pairs = make_pairs(trees, args)
     if args.test:
         pairs = islice(pairs, args.test)

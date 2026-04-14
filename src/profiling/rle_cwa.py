@@ -1,3 +1,5 @@
+import logging
+import math
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -6,6 +8,8 @@ from itertools import groupby, combinations
 from collections import Counter
 from multiprocessing import Pool
 from .common import load_og_table, count2bin, weighted_schema
+
+logger = logging.getLogger(__name__)
 
 
 class RLE_CWA:
@@ -68,6 +72,9 @@ class RLE_CWA:
             pairs = [(self.query, og) for og in self.df.columns if og != self.query]
         else:
             pairs = combinations(self.df.columns, 2)
+        n = len(self.df.columns)
+        num_pairs = n - 1 if self.query else math.comb(n, 2)
+        logger.info(f"Processing {num_pairs} OG pairs.")
         if self.method == 'rle':
             order = [ leaf.name for leaf in self.tree.get_leaves() ]
             self.df = self.df.loc[order]

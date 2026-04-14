@@ -1,4 +1,5 @@
 import logging
+import math
 import numpy as np
 import pandas as pd
 import polars as pl
@@ -12,6 +13,9 @@ logger = logging.getLogger(__name__)
 
 def run_naive(args):
     df = load_og_table(args)
+    n = len(df.columns)
+    num_pairs = n - 1 if args.query else math.comb(n, 2)
+    logger.info(f"Processing {num_pairs} OG pairs.")
     df_flipped, df_T, df_T_flipped = prepare_matrices(df)
     if args.query:
         if args.query not in df.columns:

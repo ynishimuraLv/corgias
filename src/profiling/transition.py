@@ -1,3 +1,5 @@
+import logging
+import math
 import numpy as np
 import polars as pl
 import ete3 as et
@@ -6,9 +8,14 @@ from numpy.typing import NDArray
 from .common import load_og_table, flatten_indices, list_asr_trees, uppermatrix2vector
 from .gpu_utils import cp, block_dot
 
+logger = logging.getLogger(__name__)
+
 
 def run_cotr(args):
     df = load_og_table(args)
+    n = len(df.columns)
+    num_pairs = n - 1 if args.query else math.comb(n, 2)
+    logger.info(f"Processing {num_pairs} OG pairs.")
     tree = et.Tree(args.tree, format=1)
     order = [ leaf.name for leaf in tree.get_leaves() ]
     df = df.loc[order]
@@ -88,6 +95,9 @@ def transition_count2df(k: np.ndarray, og_names: list[str],  num_transition: np.
 
 def run_sev(args):
     trees = list_asr_trees(args)
+    n = len(trees)
+    num_pairs = n - 1 if args.query else math.comb(n, 2)
+    logger.info(f"Processing {num_pairs} OG pairs.")
     with Pool(processes=args.cores) as process:
         result = process.starmap_async(count_change, trees)
         count = result.get()
