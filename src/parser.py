@@ -77,7 +77,11 @@ def parse_arguments():
     profiling_parser = new_subparser(subparsers, 'profiling', profiling_description)
     profiling_parser.add_argument('-m', '--method', choices=['naive', 'rle', 'cwa', 'asa', 'cotr', 'sev'], required=True)
     profiling_parser.add_argument('-og', '--og_table')
+    profiling_parser.add_argument('-og2', '--og_table2', default=None,
+                                  help='Secondary OG table for cross-comparison (naive, rle, cwa, cotr)')
     profiling_parser.add_argument('-a', '--asr_folder')
+    profiling_parser.add_argument('-a2', '--asr_folder2', default=None,
+                                  help='Secondary ASR result folder for cross-comparison (asa, sev)')
     profiling_parser.add_argument('-o', '--output', required=True)
     profiling_parser.add_argument('-t', '--tree')
     profiling_parser.add_argument('-c', '--cores', type=positive_int, default=1)

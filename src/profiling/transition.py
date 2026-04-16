@@ -13,26 +13,39 @@ logger = logging.getLogger(__name__)
 
 
 def run_cotr(args):
-    df = load_og_table(args)
+    df = load_og_table(args.og_table, query=args.query)
+    if args.test:
+        df = df.iloc[:, :args.test]
+    tree = et.Tree(args.tree, format=1)
+    order = [leaf.name for leaf in tree.get_leaves()]
+    df = df.loc[order]
+    num_genomes = len(order) - 1
+
+    if args.og_table2:
+        df2 = load_og_table(args.og_table2)
+        if args.test:
+            df2 = df2.iloc[:, :args.test]
+        df2 = df2.loc[order]
+        count1 = _count_transitions(df, args)
+        count2 = _count_transitions(df2, args)
+        og_names1, t1, num_trans1 = _unpack_count(count1)
+        og_names2, t2, num_trans2 = _unpack_count(count2)
+        n1, n2 = len(og_names1), len(og_names2)
+        logger.info(f"Secondary mode: {n1 * n2} cross + {math.comb(n2, 2)} secondary pairs.")
+        k_cross = calculate_k(t1, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)
+        k2     = calculate_k(t2, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)
+        return pl.concat([
+            transition_cross2df(k_cross, og_names1, og_names2, num_trans1, num_trans2, num_genomes),
+            transition_count2df(k2, og_names2, num_trans2, None, num_genomes, args),
+        ])
+
     n = len(df.columns)
     num_pairs = n - 1 if args.query else math.comb(n, 2)
     logger.info(f"Processing {num_pairs} OG pairs.")
-    tree = et.Tree(args.tree, format=1)
-    order = [ leaf.name for leaf in tree.get_leaves() ]
-    df = df.loc[order]
-    ogs = ((i, row) for i, row in df.T.iterrows())
-    with Pool(processes=args.cores) as pool:
-        with tqdm(total=len(df.columns), disable=args.quiet) as pbar:
-            futures = [pool.apply_async(count_transition, og, callback=lambda _: pbar.update())
-                       for og in ogs]
-            count = [f.get() for f in futures]
-    num_genomes = len(order) - 1
-    og_names, df, df_T, num_transition, num_transition_query = prepare_matrix(count, args)
-    k = calculate_k(df, df_T, gpu=args.gpu, num_blocks=args.num_blocks)
-    result = transition_count2df(k, og_names, num_transition,
-                                 num_transition_query, num_genomes, args)
-    
-    return result
+    count = _count_transitions(df, args)
+    og_names, t, t_T, num_transition, num_transition_query = prepare_matrix(count, args)
+    k = calculate_k(t, t_T, gpu=args.gpu, num_blocks=args.num_blocks)
+    return transition_count2df(k, og_names, num_transition, num_transition_query, num_genomes, args)
 
 
 def count_transition(og:str, row: NDArray[np.int64]
@@ -98,23 +111,36 @@ def transition_count2df(k: np.ndarray, og_names: list[str],  num_transition: np.
 
 
 def run_sev(args):
-    trees = list_asr_trees(args)
+    trees = list_asr_trees(args.asr_folder, args.tree, query=args.query)
+    if args.test:
+        trees = trees[:args.test]
+    tree = et.Tree(args.tree, format=1)
+    num_internal_nodes = len(tree.get_leaves()) - 1
+
+    if args.asr_folder2:
+        trees2 = list_asr_trees(args.asr_folder2, args.tree)
+        if args.test:
+            trees2 = trees2[:args.test]
+        count1 = _count_changes(trees, args)
+        count2 = _count_changes(trees2, args)
+        og_names1, t1, num_trans1 = _unpack_count(count1)
+        og_names2, t2, num_trans2 = _unpack_count(count2)
+        n1, n2 = len(og_names1), len(og_names2)
+        logger.info(f"Secondary mode: {n1 * n2} cross + {math.comb(n2, 2)} secondary pairs.")
+        k_cross = calculate_k(t1, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)
+        k2 = calculate_k(t2, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)
+        return pl.concat([
+            transition_cross2df(k_cross, og_names1, og_names2, num_trans1, num_trans2, num_internal_nodes),
+            transition_count2df(k2, og_names2, num_trans2, None, num_internal_nodes, args),
+        ])
+
     n = len(trees)
     num_pairs = n - 1 if args.query else math.comb(n, 2)
     logger.info(f"Processing {num_pairs} OG pairs.")
-    with Pool(processes=args.cores) as pool:
-        with tqdm(total=len(trees), disable=args.quiet) as pbar:
-            futures = [pool.apply_async(count_change, tree, callback=lambda _: pbar.update())
-                       for tree in trees]
-            count = [f.get() for f in futures]
-    tree = et.Tree(args.tree, format=1)
-    num_internal_nodes = len(tree.get_leaves()) - 1
-    og_names, df, df_T, num_transition, num_transition_query = prepare_matrix(count, args)
-    k = calculate_k(df, df_T, gpu=args.gpu, num_blocks=args.num_blocks)
-    result = transition_count2df(k, og_names, num_transition, 
-                                 num_transition_query, num_internal_nodes, args)
-    
-    return result
+    count = _count_changes(trees, args)
+    og_names, t, t_T, num_transition, num_transition_query = prepare_matrix(count, args)
+    k = calculate_k(t, t_T, gpu=args.gpu, num_blocks=args.num_blocks)
+    return transition_count2df(k, og_names, num_transition, num_transition_query, num_internal_nodes, args)
 
 
 def count_change(tree: et.TreeNode, og: str
@@ -134,6 +160,42 @@ def count_change(tree: et.TreeNode, og: str
     num_transition = np.count_nonzero(transition)
 
     return og, transition, num_transition
+
+
+def _count_transitions(df, args) -> list:
+    ogs = ((i, row) for i, row in df.T.iterrows())
+    with Pool(processes=args.cores) as pool:
+        with tqdm(total=len(df.columns), disable=args.quiet) as pbar:
+            futures = [pool.apply_async(count_transition, og, callback=lambda _: pbar.update())
+                       for og in ogs]
+            return [f.get() for f in futures]
+
+
+def _count_changes(trees, args) -> list:
+    with Pool(processes=args.cores) as pool:
+        with tqdm(total=len(trees), disable=args.quiet) as pbar:
+            futures = [pool.apply_async(count_change, tree, callback=lambda _: pbar.update())
+                       for tree in trees]
+            return [f.get() for f in futures]
+
+
+def _unpack_count(count: list) -> tuple[list, NDArray, NDArray]:
+    og_names = [c[0] for c in count]
+    t_matrix = np.vstack([c[1] for c in count])
+    num_transitions = np.array([c[2] for c in count])
+    return og_names, t_matrix, num_transitions
+
+
+def transition_cross2df(k: NDArray, og_names1: list, og_names2: list,
+                        num_trans1: NDArray, num_trans2: NDArray, N: int) -> pl.DataFrame:
+    n1, n2 = len(og_names1), len(og_names2)
+    OG1 = [og_names1[i] for i in range(n1) for _ in range(n2)]
+    OG2 = og_names2 * n1
+    nc1 = [int(num_trans1[i]) for i in range(n1) for _ in range(n2)]
+    nc2 = list(num_trans2) * n1
+    return pl.DataFrame({'OG1': OG1, 'OG2': OG2,
+                         'num_change1': nc1, 'num_change2': nc2,
+                         'k': k.flatten(), 'N': [N] * len(OG1)})
 
 
 def prepare_matrix(count, args):

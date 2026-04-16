@@ -73,12 +73,15 @@ class RLE_CWA:
         if self.query:
             pairs = [(self.query, og) for og in self.df.columns if og != self.query]
         else:
-            pairs = combinations(self.df.columns, 2)
+            pairs = list(combinations(self.df.columns, 2))
         n = len(self.df.columns)
         num_pairs = n - 1 if self.query else math.comb(n, 2)
         logger.info(f"Processing {num_pairs} OG pairs.")
+        return self.run_pairs(pairs)
+
+    def run_pairs(self, pairs: list) -> list:
         if self.method == 'rle':
-            order = [ leaf.name for leaf in self.tree.get_leaves() ]
+            order = [leaf.name for leaf in self.tree.get_leaves()]
             self.df = self.df.loc[order]
             run_method = self.rle
         elif self.method == 'cwa':
@@ -86,17 +89,34 @@ class RLE_CWA:
             run_method = self.cwa
 
         with Pool(processes=self.cores) as pool:
-            with tqdm(total=num_pairs, disable=self.quiet) as pbar:
+            with tqdm(total=len(pairs), disable=self.quiet) as pbar:
                 futures = [pool.apply_async(run_method, pair, callback=lambda _: pbar.update())
                            for pair in pairs]
-                result = [f.get() for f in futures]
-
-        return result
+                return [f.get() for f in futures]
 
 
 def run_rle_cwa(args):
-    df = load_og_table(args)
+    df = load_og_table(args.og_table, query=args.query)
+    if args.test:
+        df = df.iloc[:, :args.test]
     tree = et.Tree(args.tree, format=1)
+
+    if args.og_table2:
+        df2 = load_og_table(args.og_table2)
+        if args.test:
+            df2 = df2.iloc[:, :args.test]
+        df_combined = pd.concat([df, df2], axis=1)
+        profiler = RLE_CWA(df_combined, args.method, tree, cores=args.cores, query=None, quiet=args.quiet)
+        cross_pairs = [(og1, og2) for og1 in df.columns for og2 in df2.columns]
+        n1, n2 = len(df.columns), len(df2.columns)
+        logger.info(f"Secondary mode: {n1 * n2} cross + {math.comb(n2, 2)} secondary pairs.")
+        r_cross = profiler.run_pairs(cross_pairs)
+        r2 = profiler.run_pairs(list(combinations(df2.columns, 2)))
+        return pl.concat([
+            pl.DataFrame(r_cross, schema=weighted_schema, orient='row'),
+            pl.DataFrame(r2, schema=weighted_schema, orient='row'),
+        ])
+
     profiler = RLE_CWA(df, args.method, tree, cores=args.cores, query=args.query, quiet=args.quiet)
     result = profiler.run_paralell()
-    return pl.DataFrame(result, schema = weighted_schema, orient='row')
+    return pl.DataFrame(result, schema=weighted_schema, orient='row')

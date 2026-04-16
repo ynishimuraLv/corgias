@@ -19,6 +19,13 @@ METHOD_RUNNERS = {
 }
 
 def validate_args(args):
+    if (args.og_table2 or args.asr_folder2) and args.query:
+        raise ValueError('Secondary dataset mode (-og2/-a2) cannot be combined with -q/--query')
+    if args.og_table2 and args.method in ['asa', 'sev']:
+        raise ValueError('-og2 is not valid for asa/sev; use -a2 instead')
+    if args.asr_folder2 and args.method in ['naive', 'rle', 'cwa', 'cotr']:
+        raise ValueError('-a2 is not valid for naive/rle/cwa/cotr; use -og2 instead')
+
     if args.method == 'naive' and not args.og_table:
         raise ValueError('An ortholog table is required when using naive method')
     elif args.method in ['rle', 'cwa']:

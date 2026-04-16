@@ -12,15 +12,32 @@ from .gpu_utils import cp, block_dot
 logger = logging.getLogger(__name__)
 
 def run_naive(args):
-    df = load_og_table(args)
+    df = load_og_table(args.og_table, query=args.query)
+    if args.test:
+        df = df.iloc[:, :args.test]
+
+    if args.og_table2:
+        df2 = load_og_table(args.og_table2)
+        if args.test:
+            df2 = df2.iloc[:, :args.test]
+        n1, n2 = len(df.columns), len(df2.columns)
+        logger.info(f"Secondary mode: {n1 * n2} cross + {math.comb(n2, 2)} secondary pairs.")
+        df2_flipped, _, _ = prepare_matrices(df2)
+        _, df1_T, df1_T_flipped = prepare_matrices(df)
+        if args.gpu:
+            tt, tf, ft, ff = naive_gpu(df2, df2_flipped, df1_T, df1_T_flipped, args.num_blocks)
+        else:
+            tt, tf, ft, ff = naive_cpu(df2, df2_flipped, df1_T, df1_T_flipped, args.cores)
+        return pl.concat([
+            naivecross2matrix(tt, tf, ft, ff, list(df.columns), list(df2.columns)),
+            _naive_allvall(df2, args),
+        ])
+
     n = len(df.columns)
     num_pairs = n - 1 if args.query else math.comb(n, 2)
     logger.info(f"Processing {num_pairs} OG pairs.")
     df_flipped, df_T, df_T_flipped = prepare_matrices(df)
     if args.query:
-        if args.query not in df.columns:
-            logger.error(f"{args.query} is not found in the ortholog table")
-            raise ValueError(f"{args.query} is not found in the ortholog table")
         idx = df.columns.get_loc(args.query)
         df = df.loc[:, args.query]
         df_T.drop(args.query, inplace=True)
@@ -84,6 +101,26 @@ def naive_cpu(df: pd.DataFrame, df_flipped: pd.DataFrame, df_T: pd.DataFrame,
         tt, tf, ft, ff = process.starmap(np.dot, jobs)
 
     return tt, tf, ft, ff
+
+
+def _naive_allvall(df: pd.DataFrame, args) -> pl.DataFrame:
+    df_flipped, df_T, df_T_flipped = prepare_matrices(df)
+    if args.gpu:
+        tt, tf, ft, ff = naive_gpu(df, df_flipped, df_T, df_T_flipped, args.num_blocks)
+    else:
+        tt, tf, ft, ff = naive_cpu(df, df_flipped, df_T, df_T_flipped, args.cores)
+    return naivecount2matrix(tt, tf, ft, ff, list(df.columns))
+
+
+def naivecross2matrix(tt: NDArray[np.int64], tf: NDArray[np.int64],
+                      ft: NDArray[np.int64], ff: NDArray[np.int64],
+                      og1_names: list[str], og2_names: list[str]) -> pl.DataFrame:
+    n1, n2 = len(og1_names), len(og2_names)
+    OG1 = [og1_names[i] for i in range(n1) for _ in range(n2)]
+    OG2 = og2_names * n1
+    return pl.DataFrame({'OG1': OG1, 'OG2': OG2,
+                         'TT': tt.flatten(), 'TF': tf.flatten(),
+                         'FT': ft.flatten(), 'FF': ff.flatten()})
 
 
 def naivecount2matrix(tt: NDArray[np.int64], tf: NDArray[np.int64],

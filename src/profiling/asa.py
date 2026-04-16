@@ -1,3 +1,4 @@
+import itertools
 import logging
 import math
 import polars as pl
@@ -11,14 +12,33 @@ logger = logging.getLogger(__name__)
 
 
 def run_asa(args):
-    trees = list_asr_trees(args)
+    trees = list_asr_trees(args.asr_folder, args.tree, query=args.query)
+    if args.test:
+        trees = trees[:args.test]
+
+    if args.asr_folder2:
+        trees2 = list_asr_trees(args.asr_folder2, args.tree)
+        if args.test:
+            trees2 = trees2[:args.test]
+        n1, n2 = len(trees), len(trees2)
+        total = n1 * n2 + math.comb(n2, 2)
+        logger.info(f"Secondary mode: {n1 * n2} cross + {math.comb(n2, 2)} secondary pairs.")
+        pairs = itertools.chain(
+            ((t1, t2, args.ignore_branch) for t1 in trees for t2 in trees2),
+            ((t1, t2, args.ignore_branch) for t1, t2 in combinations(trees2, 2)),
+        )
+        with Pool(processes=args.cores) as pool:
+            with tqdm(total=total, disable=args.quiet) as pbar:
+                futures = [pool.apply_async(asa, pair, callback=lambda _: pbar.update())
+                           for pair in pairs]
+                result = pl.DataFrame([f.get() for f in futures],
+                                      schema=weighted_schema, orient='row')
+        return result
+
     n = len(trees)
     num_pairs = n - 1 if args.query else math.comb(n, 2)
     logger.info(f"Processing {num_pairs} OG pairs.")
     pairs = make_pairs(trees, args)
-    if args.test:
-        num_pairs = min(num_pairs, args.test)
-        pairs = islice(pairs, args.test)
 
     with Pool(processes=args.cores) as pool:
         with tqdm(total=num_pairs, disable=args.quiet) as pbar:

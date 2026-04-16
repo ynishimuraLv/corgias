@@ -75,19 +75,38 @@ usage: corgias profiling [-h] -m {naive,rle,cwa,asa,cotr,sev} [-og OG_TABLE] [-a
 ```
 All vs all columns (orthologs) comparison is performed by default. If your interestied in the relationship among a focused columns and the others, you can run one-vs-all comparison using the `-q` option.
 
+### Secondary dataset mode (`-og2` / `-a2`)
+
+To compare a primary dataset against a secondary dataset (e.g., additional orthologs or traits), use `-og2` (for naive/rle/cwa/cotr) or `-a2` (for asa/sev). The output contains cross-comparison pairs (primary × secondary) and secondary all-vs-all pairs. This mode is intended to be run in addition to the primary all-vs-all run.
+
+```bash
+# naive: compare first dataset against second dataset
+corgias profiling -m naive -og primary.csv -og2 secondary.csv -o cross_out.csv -c 4
+
+# sev: compare primary ASR results against secondary ASR results
+corgias profiling -m sev -a primary_asr/ -a2 secondary_asr/ -t tree.nwk -o cross_out.csv -c 4
+```
+
+**Notes:**
+- `-og2` and `-a2` cannot be combined with `-q/--query`.
+- `-og2` is for naive/rle/cwa/cotr; `-a2` is for asa/sev.
+- The secondary table (`-og2`) must have the same rows (genomes) as the primary table (`-og`).
+
 ### Options
 | Option                  | Description                                                                 |
 |-------------------------|-----------------------------------------------------------------------------|
 | `-h, --help`            | Show the help message and exit.                                            |
 | `-m, --method {naive,rle,cwa,asa,cotr,sev}` | Profiling method to use.                              |
 | `-og, --og_table OG_TABLE` | Path to the ortholog table file (CSV format).                           |
+| `-og2, --og_table2 OG_TABLE2` | Path to a secondary ortholog table for cross-comparison (naive/rle/cwa/cotr). |
 | `-a, --asr_folder ASR_FOLDER` | Path to the `asr` output folder.                                     |
+| `-a2, --asr_folder2 ASR_FOLDER2` | Path to a secondary `asr` output folder for cross-comparison (asa/sev). |
 | `-o, --output OUTPUT`   | Output file name.                                                          |
 | `-t, --tree TREE`       | Path to the species tree file (Newick format).                             |
 | `-c, --cores CORES`     | Number of CPU cores to use.                                                |
 | `--ignore_branch`       | Ignore branch lengths in the tree.                                         |
 | `--gpu`                 | Use GPU for computation.                                                  |
-| `-query, --query COLUMN` | Perform a specified column vs the others comparison.
+| `-q, --query COLUMN`    | Perform a specified column vs the others comparison.                       |
 | `-nb, --num_blocks NUM_BLOCKS` | Number of blocks for GPU computation.                               |
 | `--test TEST`           | Number of orthologs to process in test mode.
 

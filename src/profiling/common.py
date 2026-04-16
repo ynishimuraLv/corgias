@@ -29,44 +29,33 @@ def count2bin(count: int) -> bool:
         return False
 
 
-def load_og_table(args):
-    df = pl.read_csv(args.og_table).to_pandas()
+def load_og_table(path, query=None):
+    df = pl.read_csv(path).to_pandas()
     index = df.columns[0]
     df.set_index(index, inplace=True)
-    if args.query:
-        if args.query not in df.columns:
-            logger.error(f"{args.query} is not found in the ortholog table")
-            raise ValueError(f"{args.query} is not found in the ortholog table")
-        query = df[[args.query]]
-        rest = df.drop(columns=args.query)
-        df = pd.concat([query, rest], axis=1)
-    if args.test != 0:
-        return df.iloc[:, :args.test]
-    else:
-        return df
+    if query:
+        if query not in df.columns:
+            logger.error(f"{query} is not found in the ortholog table")
+            raise ValueError(f"{query} is not found in the ortholog table")
+        q = df[[query]]
+        rest = df.drop(columns=query)
+        df = pd.concat([q, rest], axis=1)
+    return df
 
 
-def list_asr_trees(args):
-    tree_name = pathlib.Path(args.tree).stem
-    tree_name = f'named.tree_{tree_name}.nwk'
-    
-    if args.query:
-        query_tree = [(f'{args.asr_folder}/{args.query}/{tree_name}', args.query)]
-        other_folders = [ folder for folder in os.listdir(args.asr_folder)
-                        if folder != args.query]
-        other_folders =  [ (f'{args.asr_folder}/{folder}/{tree_name}', folder)
-                            for folder in other_folders 
-                            if (os.path.exists(f'{args.asr_folder}/{folder}/{tree_name}'))]
-        folders = query_tree + other_folders
+def list_asr_trees(asr_folder, tree, query=None):
+    tree_name = f'named.tree_{pathlib.Path(tree).stem}.nwk'
+    if query:
+        query_tree = [(f'{asr_folder}/{query}/{tree_name}', query)]
+        other_folders = [f for f in os.listdir(asr_folder) if f != query]
+        other_folders = [(f'{asr_folder}/{f}/{tree_name}', f)
+                         for f in other_folders
+                         if os.path.exists(f'{asr_folder}/{f}/{tree_name}')]
+        return query_tree + other_folders
     else:
-        folders = [ (f'{args.asr_folder}/{folder}/{tree_name}', folder)
-                        for folder in os.listdir(args.asr_folder)
-                    if os.path.exists(f'{args.asr_folder}/{folder}/{tree_name}') ]
-
-    if args.test != 0:
-        return folders[:args.test]
-    else:
-        return folders
+        return [(f'{asr_folder}/{f}/{tree_name}', f)
+                for f in os.listdir(asr_folder)
+                if os.path.exists(f'{asr_folder}/{f}/{tree_name}')]
 
 
 def uppermatrix2vector(matrix: NDArray[np.int64]):
