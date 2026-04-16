@@ -8,7 +8,7 @@ from itertools import groupby, combinations
 from collections import Counter
 from multiprocessing import Pool
 from tqdm import tqdm
-from .common import load_og_table, count2bin, weighted_schema
+from .common import load_og_table, count2bin, weighted_schema, log_secondary_mode
 
 logger = logging.getLogger(__name__)
 
@@ -109,7 +109,7 @@ def run_rle_cwa(args):
         profiler = RLE_CWA(df_combined, args.method, tree, cores=args.cores, query=None, quiet=args.quiet)
         cross_pairs = [(og1, og2) for og1 in df.columns for og2 in df2.columns]
         n1, n2 = len(df.columns), len(df2.columns)
-        logger.info(f"Secondary mode: {n1 * n2} cross + {math.comb(n2, 2)} secondary pairs.")
+        log_secondary_mode(logger, n1, n2)
         r_cross = profiler.run_pairs(cross_pairs)
         r2 = profiler.run_pairs(list(combinations(df2.columns, 2)))
         return pl.concat([

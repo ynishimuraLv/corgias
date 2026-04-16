@@ -1,3 +1,4 @@
+import math
 import os
 import logging
 import pathlib
@@ -10,6 +11,11 @@ logger = logging.getLogger(__name__)
 weighted_schema = { "OG1": pl.Utf8, "OG2": pl.Utf8,
                     "TT": pl.Float64, "TF": pl.Float64,
                     "FT": pl.Float64, "FF": pl.Float64 }
+
+
+def log_secondary_mode(logger, n1: int, n2: int) -> None:
+    logger.info(f"Secondary mode: {n1 * n2} cross + {math.comb(n2, 2)} secondary pairs.")
+
 
 def gene_count(genes: str) -> int:
     if genes == '*' or not genes:

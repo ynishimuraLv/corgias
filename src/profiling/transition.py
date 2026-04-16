@@ -6,7 +6,7 @@ import ete3 as et
 from multiprocessing import Pool
 from numpy.typing import NDArray
 from tqdm import tqdm
-from .common import load_og_table, flatten_indices, list_asr_trees, uppermatrix2vector
+from .common import load_og_table, flatten_indices, list_asr_trees, uppermatrix2vector, log_secondary_mode
 from .gpu_utils import cp, block_dot
 
 logger = logging.getLogger(__name__)
@@ -31,7 +31,7 @@ def run_cotr(args):
         og_names1, t1, num_trans1 = _unpack_count(count1)
         og_names2, t2, num_trans2 = _unpack_count(count2)
         n1, n2 = len(og_names1), len(og_names2)
-        logger.info(f"Secondary mode: {n1 * n2} cross + {math.comb(n2, 2)} secondary pairs.")
+        log_secondary_mode(logger, n1, n2)
         backend = "GPU" if args.gpu else "CPU"
         logger.info(f"Computing transition matrix ({n1}x{n2} cross + {n2}x{n2}) on {backend}.")
         k_cross = calculate_k(t1, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)
@@ -129,7 +129,7 @@ def run_sev(args):
         og_names1, t1, num_trans1 = _unpack_count(count1)
         og_names2, t2, num_trans2 = _unpack_count(count2)
         n1, n2 = len(og_names1), len(og_names2)
-        logger.info(f"Secondary mode: {n1 * n2} cross + {math.comb(n2, 2)} secondary pairs.")
+        log_secondary_mode(logger, n1, n2)
         backend = "GPU" if args.gpu else "CPU"
         logger.info(f"Computing transition matrix ({n1}x{n2} cross + {n2}x{n2}) on {backend}.")
         k_cross = calculate_k(t1, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)

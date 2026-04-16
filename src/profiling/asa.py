@@ -6,7 +6,7 @@ import ete3 as et
 from itertools import combinations, islice
 from multiprocessing import Pool
 from tqdm import tqdm
-from .common import list_asr_trees, weighted_schema
+from .common import list_asr_trees, weighted_schema, log_secondary_mode
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ def run_asa(args):
             trees2 = trees2[:args.test]
         n1, n2 = len(trees), len(trees2)
         total = n1 * n2 + math.comb(n2, 2)
-        logger.info(f"Secondary mode: {n1 * n2} cross + {math.comb(n2, 2)} secondary pairs.")
+        log_secondary_mode(logger, n1, n2)
         pairs = itertools.chain(
             ((t1, t2, args.ignore_branch) for t1 in trees for t2 in trees2),
             ((t1, t2, args.ignore_branch) for t1, t2 in combinations(trees2, 2)),

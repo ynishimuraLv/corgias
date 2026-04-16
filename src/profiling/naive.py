@@ -6,7 +6,7 @@ import polars as pl
 from numpy.typing import NDArray
 from multiprocessing import Pool
 
-from .common import load_og_table, uppermatrix2vector, flatten_indices
+from .common import load_og_table, uppermatrix2vector, flatten_indices, log_secondary_mode
 from .gpu_utils import cp, block_dot
 
 logger = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ def run_naive(args):
         if args.test:
             df2 = df2.iloc[:, :args.test]
         n1, n2 = len(df.columns), len(df2.columns)
-        logger.info(f"Secondary mode: {n1 * n2} cross + {math.comb(n2, 2)} secondary pairs.")
+        log_secondary_mode(logger, n1, n2)
         df2_flipped, _, _ = prepare_matrices(df2)
         _, df1_T, df1_T_flipped = prepare_matrices(df)
         backend = "GPU" if args.gpu else "CPU"
