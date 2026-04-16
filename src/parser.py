@@ -94,6 +94,8 @@ def parse_arguments():
 
     stat_parser = new_subparser(subparsers, 'stat', stat_description)
     stat_parser.add_argument('-i', '--input', required=True)
+    stat_parser.add_argument('-i2', '--input2', default=None,
+                             help='Secondary profiling result (raw) for combined correction with primary stat result (-i)')
     stat_parser.add_argument('-m', '--method', required=True,
                              choices=['naive', 'rle', 'cwa', 'asa', 'cotr', 'sev'])
     stat_parser.add_argument('-o', '--output')
