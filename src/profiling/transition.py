@@ -105,7 +105,7 @@ def transition_count2df(k: np.ndarray, og_names: list[str],  num_transition: np.
         k = uppermatrix2vector(k)
         k = pl.DataFrame({'k':k})
         result = pl.concat([indices, k], how='horizontal')
-        df = result.with_columns(N).rename({'literal':'N'})
+        df = result.with_columns(pl.lit(N, dtype=pl.Int64).alias('N'))
 
     return df
 
@@ -192,10 +192,14 @@ def transition_cross2df(k: NDArray, og_names1: list, og_names2: list,
     OG1 = [og_names1[i] for i in range(n1) for _ in range(n2)]
     OG2 = og_names2 * n1
     nc1 = [int(num_trans1[i]) for i in range(n1) for _ in range(n2)]
-    nc2 = list(num_trans2) * n1
+    nc2 = [int(x) for x in num_trans2] * n1
     return pl.DataFrame({'OG1': OG1, 'OG2': OG2,
                          'num_change1': nc1, 'num_change2': nc2,
-                         'k': k.flatten(), 'N': [N] * len(OG1)})
+                         'k': k.flatten().astype(np.int64),
+                         'N': [N] * len(OG1)},
+                        schema={'OG1': pl.Utf8, 'OG2': pl.Utf8,
+                                'num_change1': pl.Int64, 'num_change2': pl.Int64,
+                                'k': pl.Int64, 'N': pl.Int64})
 
 
 def prepare_matrix(count, args):
