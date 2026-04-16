@@ -29,15 +29,18 @@ N = args.num_tests  # OGs per dataset
 
 # ── Ensure test fixtures exist ─────────────────────────────────────────────
 print("Checking test fixtures ...")
-if not ensure_fixtures(['ML_result', 'MP_result'], cores=args.cores, num_tests=N * 2):
+if not ensure_fixtures(['ML_sub', 'ML_others', 'MP_sub', 'MP_others'],
+                       cores=args.cores, num_tests=N * 2):
     sys.exit(1)
 print()
 
 # ── Prepare split OG tables ────────────────────────────────────────────────
 og_table = SAMPLES / "archaea_COG_table99.csv"
 tree = SAMPLES / "archaea_hq90.tre"
-asr_ml = TEST / "ML_result"
-asr_mp = TEST / "MP_result"
+asr_ml_sub    = TEST / "ML_sub"
+asr_ml_others = TEST / "ML_others"
+asr_mp_sub    = TEST / "MP_sub"
+asr_mp_others = TEST / "MP_others"
 
 output_dir = Path(args.output_dir) if args.output_dir else Path(tempfile.mkdtemp(prefix="corgias_secondary_"))
 output_dir.mkdir(parents=True, exist_ok=True)
@@ -118,23 +121,23 @@ run_case('cotr_secondary',
 
 run_case('asa_secondary',
          base + ['-m', 'asa',
-                 '-a', asr_ml, '-a2', asr_ml, '-t', tree,
+                 '-a', asr_ml_sub, '-a2', asr_ml_others, '-t', tree,
                  '-o', output_dir / 'asa_secondary.csv'])
 
 run_case('sev_secondary',
          base + ['-m', 'sev',
-                 '-a', asr_mp, '-a2', asr_mp, '-t', tree,
+                 '-a', asr_mp_sub, '-a2', asr_mp_others, '-t', tree,
                  '-o', output_dir / 'sev_secondary.csv'])
 
 # ── Validation rejection cases ─────────────────────────────────────────────
 run_should_fail('reject_og2_with_asa',
                 base + ['-m', 'asa',
-                        '-og2', secondary_path, '-a', asr_ml, '-t', tree,
+                        '-og2', secondary_path, '-a', asr_ml_sub, '-t', tree,
                         '-o', output_dir / 'reject1.csv'])
 
 run_should_fail('reject_a2_with_naive',
                 base + ['-m', 'naive',
-                        '-og', primary_path, '-a2', asr_ml,
+                        '-og', primary_path, '-a2', asr_ml_sub,
                         '-o', output_dir / 'reject2.csv'])
 
 run_should_fail('reject_query_with_og2',
