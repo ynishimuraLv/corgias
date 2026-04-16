@@ -24,6 +24,8 @@ def run_naive(args):
         logger.info(f"Secondary mode: {n1 * n2} cross + {math.comb(n2, 2)} secondary pairs.")
         df2_flipped, _, _ = prepare_matrices(df2)
         _, df1_T, df1_T_flipped = prepare_matrices(df)
+        backend = "GPU" if args.gpu else "CPU"
+        logger.info(f"Computing co-/anti-occurrence matrix ({n1}x{n2} cross) on {backend}.")
         if args.gpu:
             tt, tf, ft, ff = naive_gpu(df2, df2_flipped, df1_T, df1_T_flipped, args.num_blocks)
         else:
@@ -43,6 +45,8 @@ def run_naive(args):
         df_T.drop(args.query, inplace=True)
         df_flipped = df_flipped.iloc[:, idx]
         df_T_flipped.drop(args.query, inplace=True)
+    backend = "GPU" if args.gpu else "CPU"
+    logger.info(f"Computing co-/anti-occurrence matrix on {backend}.")
     if args.gpu:
         tt, tf, ft, ff = naive_gpu(df, df_flipped, df_T, df_T_flipped, args.num_blocks)
     else:

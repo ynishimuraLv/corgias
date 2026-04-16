@@ -32,6 +32,8 @@ def run_cotr(args):
         og_names2, t2, num_trans2 = _unpack_count(count2)
         n1, n2 = len(og_names1), len(og_names2)
         logger.info(f"Secondary mode: {n1 * n2} cross + {math.comb(n2, 2)} secondary pairs.")
+        backend = "GPU" if args.gpu else "CPU"
+        logger.info(f"Computing transition matrix ({n1}x{n2} cross + {n2}x{n2}) on {backend}.")
         k_cross = calculate_k(t1, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)
         k2     = calculate_k(t2, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)
         return pl.concat([
@@ -40,10 +42,11 @@ def run_cotr(args):
         ])
 
     n = len(df.columns)
-    num_pairs = n - 1 if args.query else math.comb(n, 2)
-    logger.info(f"Processing {num_pairs} OG pairs.")
+    logger.info(f"Counting transitions for {n} OGs.")
     count = _count_transitions(df, args)
     og_names, t, t_T, num_transition, num_transition_query = prepare_matrix(count, args)
+    backend = "GPU" if args.gpu else "CPU"
+    logger.info(f"Computing transition matrix on {backend}.")
     k = calculate_k(t, t_T, gpu=args.gpu, num_blocks=args.num_blocks)
     return transition_count2df(k, og_names, num_transition, num_transition_query, num_genomes, args)
 
@@ -127,6 +130,8 @@ def run_sev(args):
         og_names2, t2, num_trans2 = _unpack_count(count2)
         n1, n2 = len(og_names1), len(og_names2)
         logger.info(f"Secondary mode: {n1 * n2} cross + {math.comb(n2, 2)} secondary pairs.")
+        backend = "GPU" if args.gpu else "CPU"
+        logger.info(f"Computing transition matrix ({n1}x{n2} cross + {n2}x{n2}) on {backend}.")
         k_cross = calculate_k(t1, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)
         k2 = calculate_k(t2, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)
         return pl.concat([
@@ -135,10 +140,11 @@ def run_sev(args):
         ])
 
     n = len(trees)
-    num_pairs = n - 1 if args.query else math.comb(n, 2)
-    logger.info(f"Processing {num_pairs} OG pairs.")
+    logger.info(f"Counting state changes for {n} OGs.")
     count = _count_changes(trees, args)
     og_names, t, t_T, num_transition, num_transition_query = prepare_matrix(count, args)
+    backend = "GPU" if args.gpu else "CPU"
+    logger.info(f"Computing transition matrix on {backend}.")
     k = calculate_k(t, t_T, gpu=args.gpu, num_blocks=args.num_blocks)
     return transition_count2df(k, og_names, num_transition, num_transition_query, num_internal_nodes, args)
 
