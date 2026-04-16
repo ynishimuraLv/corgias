@@ -55,7 +55,7 @@ def run_naive(args):
     og_names = list(df_T.index)
     if args.query:
         return pl.DataFrame({'OG1':[args.query]*len(og_names), 'OG2':og_names,
-                             'TT':tt, 'TF':tf, 'FT':ft, 'FF':ff})
+                             'TT':tt, 'TF':ft, 'FT':tf, 'FF':ff})
     else:
         return naivecount2matrix(tt, tf, ft, ff, og_names)
 
