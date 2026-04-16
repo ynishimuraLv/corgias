@@ -1,8 +1,11 @@
 import os
+import sys
 import argparse
 import subprocess
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).parent))
+from test_init import ensure_fixtures
 
 ROOT = Path(__file__).resolve().parents[1]
 SAMPLES = ROOT / "samples"
@@ -10,9 +13,14 @@ TEST = ROOT / "test"
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-o', '--output_dir')
-parser.add_argument('-c', '--cores', default=5)
-parser.add_argument('-n', '--num_tests', default=5)
+parser.add_argument('-c', '--cores', default=5, type=int)
+parser.add_argument('-n', '--num_tests', default=5, type=int)
 args = parser.parse_args()
+
+print("Checking test fixtures ...")
+if not ensure_fixtures(cores=args.cores, num_tests=args.num_tests * 2):
+    sys.exit(1)
+print()
 body = ['corgias', 'profiling', '-c', args.cores, '--test', args.num_tests, '--log-file', f'{args.output_dir}/log.txt']
 
 og_table = SAMPLES / "archaea_COG_table99.csv"

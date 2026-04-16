@@ -2,7 +2,6 @@
 """Smoke test for secondary dataset mode (-og2 / -a2) of corgias profiling."""
 
 import math
-import os
 import subprocess
 import sys
 import tempfile
@@ -15,6 +14,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SAMPLES = ROOT / "samples"
 TEST = ROOT / "test"
 
+sys.path.insert(0, str(Path(__file__).parent))
+from test_init import ensure_fixtures
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-o', '--output_dir', default=None,
                     help='Output directory (default: temp dir)')
@@ -25,12 +27,18 @@ args = parser.parse_args()
 
 N = args.num_tests  # OGs per dataset
 
+# ── Ensure test fixtures exist ─────────────────────────────────────────────
+print("Checking test fixtures ...")
+if not ensure_fixtures(['ML_result', 'MP_result'], cores=args.cores, num_tests=N * 2):
+    sys.exit(1)
+print()
+
 # ── Prepare split OG tables ────────────────────────────────────────────────
 og_table = SAMPLES / "archaea_COG_table99.csv"
 tree = SAMPLES / "archaea_hq90.tre"
 asr_ml = TEST / "ML_result"
+asr_mp = TEST / "MP_result"
 
-_tmp_owned = args.output_dir is None
 output_dir = Path(args.output_dir) if args.output_dir else Path(tempfile.mkdtemp(prefix="corgias_secondary_"))
 output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -46,14 +54,10 @@ print(f"OGs per dataset: {N}")
 print()
 
 # ── Expected row counts ────────────────────────────────────────────────────
-# With --test N applied to both datasets:
-#   cross          = N * N
-#   secondary allvall = C(N, 2)
-n_cross = N * N
-n_sec_allvall = math.comb(N, 2)
-expected_rows = n_cross + n_sec_allvall
+# cross = N * N,  secondary allvall = C(N, 2)
+expected_rows = N * N + math.comb(N, 2)
 
-# ── Helper ─────────────────────────────────────────────────────────────────
+# ── Helpers ────────────────────────────────────────────────────────────────
 results = []
 
 def run_case(name, cmd, out_path=None, expected=None):
@@ -72,7 +76,6 @@ def run_case(name, cmd, out_path=None, expected=None):
         results.append((name, f"FAIL ({e})"))
 
 def run_should_fail(name, cmd):
-    """Expect a non-zero exit code (validation rejection)."""
     cmd = [str(x) for x in cmd]
     ret = subprocess.run(cmd, capture_output=True)
     if ret.returncode != 0:
@@ -85,7 +88,6 @@ base = ['corgias', 'profiling', '-c', args.cores, '--test', N]
 
 # ── Test cases ─────────────────────────────────────────────────────────────
 
-# naive
 run_case('naive_secondary',
          base + ['-m', 'naive',
                  '-og', primary_path, '-og2', secondary_path,
@@ -93,7 +95,6 @@ run_case('naive_secondary',
          out_path=output_dir / 'naive_secondary.csv',
          expected=expected_rows)
 
-# rle
 run_case('rle_secondary',
          base + ['-m', 'rle',
                  '-og', primary_path, '-og2', secondary_path, '-t', tree,
@@ -101,7 +102,6 @@ run_case('rle_secondary',
          out_path=output_dir / 'rle_secondary.csv',
          expected=expected_rows)
 
-# cwa
 run_case('cwa_secondary',
          base + ['-m', 'cwa',
                  '-og', primary_path, '-og2', secondary_path, '-t', tree,
@@ -109,7 +109,6 @@ run_case('cwa_secondary',
          out_path=output_dir / 'cwa_secondary.csv',
          expected=expected_rows)
 
-# cotr
 run_case('cotr_secondary',
          base + ['-m', 'cotr',
                  '-og', primary_path, '-og2', secondary_path, '-t', tree,
@@ -117,11 +116,15 @@ run_case('cotr_secondary',
          out_path=output_dir / 'cotr_secondary.csv',
          expected=expected_rows)
 
-# asa: use same asr folder for both primary and secondary (smoke test)
 run_case('asa_secondary',
          base + ['-m', 'asa',
                  '-a', asr_ml, '-a2', asr_ml, '-t', tree,
                  '-o', output_dir / 'asa_secondary.csv'])
+
+run_case('sev_secondary',
+         base + ['-m', 'sev',
+                 '-a', asr_mp, '-a2', asr_mp, '-t', tree,
+                 '-o', output_dir / 'sev_secondary.csv'])
 
 # ── Validation rejection cases ─────────────────────────────────────────────
 run_should_fail('reject_og2_with_asa',
