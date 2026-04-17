@@ -85,8 +85,8 @@ def transition_count2df(k: np.ndarray, og_names: list[str],  num_transition: np.
                         num_transition_query: np.ndarray, N: int, args) -> pl.DataFrame:
     if num_transition_query:
         return pl.DataFrame({'OG1':[args.query]*len(og_names), 'OG2':og_names,
-                             'num_change1':[num_transition_query]*len(og_names), 
-                             'num_change2':num_transition.flatten(), 'k':k, 'N':[N]*len(og_names)})
+                             'num_change1':[num_transition_query]*len(og_names),
+                             'num_change2':num_transition.flatten(), 'k':k.astype(np.int64), 'N':[N]*len(og_names)})
     else:
         indices = flatten_indices(k)
         og_names = pl.DataFrame(og_names).with_row_count('index').select(
@@ -106,7 +106,7 @@ def transition_count2df(k: np.ndarray, og_names: list[str],  num_transition: np.
                 ['OG1', 'OG2', 'num_change1', 'num_change2']
                 )
         k = uppermatrix2vector(k)
-        k = pl.DataFrame({'k':k})
+        k = pl.DataFrame({'k': k.astype(np.int64)})
         result = pl.concat([indices, k], how='horizontal')
         df = result.with_columns(pl.lit(N, dtype=pl.Int64).alias('N'))
 
