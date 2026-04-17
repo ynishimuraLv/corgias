@@ -77,3 +77,8 @@ def flatten_indices(df: NDArray[np.int64]) -> pl.DataFrame:
     indices = pl.DataFrame(np.vstack(upper_indices).T)
 
     return indices
+
+
+def pastml_attr(og: str) -> str:
+    """pastml がツリーノードに付与する属性名を返す（ハイフンを除去）。"""
+    return og.replace('-', '')

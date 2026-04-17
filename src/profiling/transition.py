@@ -6,7 +6,7 @@ import ete3 as et
 from multiprocessing import Pool
 from numpy.typing import NDArray
 from tqdm import tqdm
-from .common import load_og_table, flatten_indices, list_asr_trees, uppermatrix2vector, log_secondary_mode
+from .common import load_og_table, flatten_indices, list_asr_trees, uppermatrix2vector, log_secondary_mode, pastml_attr
 from .gpu_utils import cp, block_dot
 
 logger = logging.getLogger(__name__)
@@ -153,11 +153,12 @@ def count_change(tree: et.TreeNode, og: str
                  ) -> tuple[str, NDArray[np.int64], int]:
     tree = et.Tree(tree, format=1)
     transition = []
+    attr = pastml_attr(og)
     for node in tree.traverse():
         if not node.is_leaf():
-            parent_state = getattr(node, og)
+            parent_state = getattr(node, attr)
             for child in node.get_children():
-                child_state = getattr(child, og)
+                child_state = getattr(child, attr)
                 try:
                     transition.append(int(float(child_state)) - int(float(parent_state)))
                 except ValueError:

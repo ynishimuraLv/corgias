@@ -6,7 +6,7 @@ import ete3 as et
 from itertools import combinations, islice
 from multiprocessing import Pool
 from tqdm import tqdm
-from .common import list_asr_trees, weighted_schema, log_secondary_mode
+from .common import list_asr_trees, weighted_schema, log_secondary_mode, pastml_attr
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ def merge_tree(tree1: et.Tree, og1: str,
     for node, node1, node2 in zip(tree.traverse(),
                                   tree1.traverse(),
                                   tree2.traverse()):
-        node.trait = mix_trait(getattr(node1, og1), getattr(node2, og2))
+        node.trait = mix_trait(getattr(node1, pastml_attr(og1)), getattr(node2, pastml_attr(og2)))
     return tree
 
 
