@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import logging
+from pathlib import Path
 from src.logconfig import setup_logger
 import src.parser as parser
 from src.asr import run_asr
@@ -12,11 +13,11 @@ def main():
 
     if args.log_file is None:
         if args.subparser_name == 'asr':
-            args.log_file = f"asr_{args.prediction_method}.log"
+            args.log_file = f"{Path(args.work_dir).name}.log"
         elif args.subparser_name == 'profiling':
-            args.log_file = f"profiling_{args.method}.log"
+            args.log_file = f"{Path(args.output).stem}.log"
         elif args.subparser_name == 'stat':
-            args.log_file = f"stat_{args.statistical_test}_{args.threthold}.log"
+            args.log_file = f"{Path(args.output).stem}.log"
 
     setup_logger(args.log_file, args.verbose, args.quiet)
 

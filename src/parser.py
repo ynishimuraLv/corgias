@@ -98,7 +98,7 @@ def parse_arguments():
                              help='Secondary profiling result (raw) for combined correction with primary stat result (-i)')
     stat_parser.add_argument('-m', '--method', required=True,
                              choices=['naive', 'rle', 'cwa', 'asa', 'cotr', 'sev'])
-    stat_parser.add_argument('-o', '--output')
+    stat_parser.add_argument('-o', '--output', required=True)
     stat_parser.add_argument('-d', '--direction',
                              choices=['both', 'correlation', 'anti-correlation'],
                              default='both')
