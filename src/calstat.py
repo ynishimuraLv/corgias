@@ -30,6 +30,13 @@ def run_test4transition(OG1: str, OG2: str, t1: int,
     return OG1, OG2, direction, pvalue
 
 
+def _apply_weighted(row):
+    return run_test4weighted(*row)
+
+def _apply_transition(row):
+    return run_test4transition(*row)
+
+
 logger = logging.getLogger(__name__)
 
 WEIGHTED_METHODS    = ['naive', 'rle', 'cwa', 'asa']
@@ -47,28 +54,34 @@ def _compute_pvalues(df: pl.DataFrame, method: str, direction: str,
         dir_map = {'correlation': 'greater', 'anti-correlation': 'less', 'both': 'two-sided'}
         alt = dir_map[direction]
         df = df.with_columns(pl.lit(alt).alias('alternative'))
+        n = df.shape[0]
         rows = df.select('OG1', 'OG2', 'TT', 'TF', 'FT', 'FF', 'alternative').iter_rows()
-        logger.info(f'Running statistical tests of {method} results with {direction} direction for {df.shape[0]} pairs.')
+        chunksize = max(1, n // (cores * 10))
+        logger.info(f'Running statistical tests of {method} results with {direction} direction for {n} pairs.')
         with Pool(processes=cores) as pool:
-            with tqdm(total=df.shape[0], disable=quiet) as pbar:
-                futures = [pool.apply_async(run_test4weighted, row, callback=lambda _: pbar.update())
-                           for row in rows]
-                return pl.DataFrame([f.get() for f in futures],
-                                    schema=['OG1', 'OG2', 'odds', 'pvalue'], orient='row')
+            with tqdm(total=n, disable=quiet) as pbar:
+                results = []
+                for r in pool.imap(_apply_weighted, rows, chunksize=chunksize):
+                    results.append(r)
+                    pbar.update()
+        return pl.DataFrame(results, schema=['OG1', 'OG2', 'odds', 'pvalue'], orient='row')
 
     elif method in TRANSITION_METHODS:
         if direction == 'correlation':
             df = df.filter(pl.col('k') > 0)
         elif direction == 'anti-correlation':
             df = df.filter(pl.col('k') < 0)
+        n = df.shape[0]
         rows = df.iter_rows()
-        logger.info(f'Running statistical tests of {method} results with {direction} direction for {df.shape[0]} pairs.')
+        chunksize = max(1, n // (cores * 10))
+        logger.info(f'Running statistical tests of {method} results with {direction} direction for {n} pairs.')
         with Pool(processes=cores) as pool:
-            with tqdm(total=df.shape[0], disable=quiet) as pbar:
-                futures = [pool.apply_async(run_test4transition, row, callback=lambda _: pbar.update())
-                           for row in rows]
-                return pl.DataFrame([f.get() for f in futures],
-                                    schema=['OG1', 'OG2', 'direction', 'pvalue'], orient='row')
+            with tqdm(total=n, disable=quiet) as pbar:
+                results = []
+                for r in pool.imap(_apply_transition, rows, chunksize=chunksize):
+                    results.append(r)
+                    pbar.update()
+        return pl.DataFrame(results, schema=['OG1', 'OG2', 'direction', 'pvalue'], orient='row')
 
 
 def run_stat(args, options):
