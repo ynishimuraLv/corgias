@@ -65,12 +65,22 @@ def count_transition(og:str, row: NDArray[np.int64]
     return og, transition, num_transition
 
 
+def _gpu_dtype(vec_len: int):
+    if vec_len < 2**15:
+        return cp.int16
+    elif vec_len < 2**31:
+        return cp.int32
+    else:
+        return cp.int64
+
+
 def calculate_k(df: np.ndarray, df_T: np.ndarray,
                 gpu: bool = False, num_blocks: int = 0) -> NDArray[np.int64]:
     if gpu:
         if num_blocks == 0:
-            df = cp.asarray(df, dtype=cp.int16)
-            df_T = cp.asarray(df_T, dtype=cp.int16)
+            dtype = _gpu_dtype(df.shape[1])
+            df = cp.asarray(df, dtype=dtype)
+            df_T = cp.asarray(df_T, dtype=dtype)
             k = cp.asnumpy(cp.dot(df, df_T))
         else:
             block_size = df.shape[0] // num_blocks
