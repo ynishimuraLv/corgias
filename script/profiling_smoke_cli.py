@@ -6,6 +6,12 @@ from pathlib import Path
 
 import polars as pl
 
+try:
+    import cupy  # noqa: F401
+    CUPY_AVAILABLE = True
+except ImportError:
+    CUPY_AVAILABLE = False
+
 sys.path.insert(0, str(Path(__file__).parent))
 from test_init import ensure_fixtures
 
@@ -129,6 +135,24 @@ CASES = [
         'answer_method': 'sev', 'swap_pairs': SWAP_CHANGE,
     },
 ]
+
+if CUPY_AVAILABLE:
+    CASES += [
+        {
+            'name': 'naive_gpu',
+            'cmd': body + ['--gpu', '-m', 'naive', '-og', og_table,
+                           '-o', OUT / 'naive_gpu.csv'],
+            'output_path': OUT / 'naive_gpu.csv',
+            'answer_method': 'naive', 'swap_pairs': SWAP_TF_FT,
+        },
+        {
+            'name': 'naive_gpu_query',
+            'cmd': body + ['--gpu', '-m', 'naive', '-og', og_table,
+                           '-o', OUT / 'naive_gpu_COG0003.csv'] + query,
+            'output_path': OUT / 'naive_gpu_COG0003.csv',
+            'answer_method': 'naive', 'swap_pairs': SWAP_TF_FT,
+        },
+    ]
 
 
 def normalize_pairs(df: pl.DataFrame, swap_pairs: list) -> pl.DataFrame:
