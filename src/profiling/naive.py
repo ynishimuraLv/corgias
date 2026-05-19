@@ -70,7 +70,7 @@ def prepare_matrices(df: pd.DataFrame
     return df_flipped, df_T, df_T_flipped
 
 
-def naive_gpu(df: pd.DataFrame, df_T: pd.DataFrame, df_flipped: pd.DataFrame, 
+def naive_gpu(df: pd.DataFrame, df_flipped: pd.DataFrame, df_T: pd.DataFrame, 
                   df_T_flipped: pd.DataFrame, num_blocks: int = 0
                  ) -> tuple[NDArray[np.int64], NDArray[np.int64],
                          NDArray[np.int64], NDArray[np.int64]]:
