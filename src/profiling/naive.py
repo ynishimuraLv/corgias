@@ -7,7 +7,7 @@ from numpy.typing import NDArray
 from multiprocessing import Pool
 
 from .common import load_og_table, uppermatrix2vector, flatten_indices, log_secondary_mode
-from .gpu_utils import cp, block_dot
+from .gpu_utils import cp, block_dot, _gpu_dtype
 
 logger = logging.getLogger(__name__)
 
@@ -75,11 +75,11 @@ def naive_gpu(df: pd.DataFrame, df_flipped: pd.DataFrame, df_T: pd.DataFrame,
                  ) -> tuple[NDArray[np.int64], NDArray[np.int64],
                          NDArray[np.int64], NDArray[np.int64]]:
     
-    # cp.int16で十分かは後で考える
-    df = cp.asarray(df, dtype=cp.int16)
-    df_T = cp.asarray(df_T, dtype=cp.int16)
-    df_flipped = cp.asarray(df_flipped, dtype=cp.int16)
-    df_T_flipped = cp.asarray(df_T_flipped, dtype=cp.int16)
+    dtype = _gpu_dtype(df.shape[0])
+    df = cp.asarray(df, dtype=dtype)
+    df_T = cp.asarray(df_T, dtype=dtype)
+    df_flipped = cp.asarray(df_flipped, dtype=dtype)
+    df_T_flipped = cp.asarray(df_T_flipped, dtype=dtype)
     if num_blocks == 0:
         tt = cp.asnumpy(cp.dot(df_T, df))
         tf = cp.asnumpy(cp.dot(df_T, df_flipped))
