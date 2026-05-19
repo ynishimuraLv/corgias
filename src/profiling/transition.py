@@ -7,7 +7,7 @@ from multiprocessing import Pool
 from numpy.typing import NDArray
 from tqdm import tqdm
 from .common import load_og_table, flatten_indices, list_asr_trees, uppermatrix2vector, log_secondary_mode, pastml_attr
-from .gpu_utils import cp, block_dot
+from .gpu_utils import cp, block_dot, _gpu_dtype
 
 logger = logging.getLogger(__name__)
 
@@ -63,15 +63,6 @@ def count_transition(og:str, row: NDArray[np.int64]
     num_transition = np.count_nonzero(transition)
 
     return og, transition, num_transition
-
-
-def _gpu_dtype(vec_len: int):
-    if vec_len < 2**15:
-        return cp.int16
-    elif vec_len < 2**31:
-        return cp.int32
-    else:
-        return cp.int64
 
 
 def calculate_k(df: np.ndarray, df_T: np.ndarray,

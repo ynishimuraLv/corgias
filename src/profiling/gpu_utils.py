@@ -3,6 +3,14 @@ import numpy as np
 try:
     import cupy as cp
     CUPY_AVAILABLE = True
+    def _gpu_dtype(vec_len: int):
+        if vec_len < 2**15:
+            return cp.int16
+        elif vec_len < 2**31:
+            return cp.int32
+        else:
+            return cp.int64
+
     def block_dot(df1: cp.ndarray, df2: cp.ndarray, block_size: int):
             M, K = df1.shape
             _, N = df2.shape
