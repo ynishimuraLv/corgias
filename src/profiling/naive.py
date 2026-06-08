@@ -53,7 +53,7 @@ def run_naive(args):
     elif args.query:
         tt, tf, ft, ff = naive_cpu(df, df_flipped, df_T, df_T_flipped, args.cores)
     else:
-        tt, tf, ft, ff = naive_cpu_sym(df.values, df_flipped.values)
+        tt, tf, ft, ff = naive_cpu_sym(df.values)
 
     og_names = list(df_T.index)
     if args.query:
@@ -78,7 +78,7 @@ def naive_gpu(df: pd.DataFrame, df_flipped: pd.DataFrame, df_T: pd.DataFrame,
               ) -> tuple[NDArray, NDArray, NDArray, NDArray]:
     if num_blocks == 0:
         a = cp.asarray(df, dtype=cp.float32)
-        b = cp.asarray(df_flipped, dtype=cp.float32)
+        b = 1.0 - a
         tt = cp.asnumpy(_gpu_syrk(a, 'T'))       # upper tri of A.T @ A
         ff = cp.asnumpy(_gpu_syrk(b, 'T'))       # upper tri of B.T @ B
         tf = cp.asnumpy(cp.dot(a.T, b))          # A.T @ B, full matrix
@@ -97,11 +97,10 @@ def naive_gpu(df: pd.DataFrame, df_flipped: pd.DataFrame, df_T: pd.DataFrame,
     return tt, tf, ft, ff
 
 
-def naive_cpu_sym(df_vals: np.ndarray, df_flipped_vals: np.ndarray
-                  ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def naive_cpu_sym(df_vals: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Symmetric all-vs-all: 2x dsyrk + 1x dgemm + transpose (no Pool needed)."""
     a = df_vals.astype(np.float64)
-    b = df_flipped_vals.astype(np.float64)
+    b = 1.0 - a
     tt = _dsyrk(1.0, a, trans=1, lower=0)   # upper tri of A.T @ A
     ff = _dsyrk(1.0, b, trans=1, lower=0)   # upper tri of B.T @ B
     tf = np.dot(a.T, b)                      # A.T @ B, full matrix needed
@@ -130,7 +129,7 @@ def _naive_allvall(df: pd.DataFrame, args) -> pl.DataFrame:
     if args.gpu:
         tt, tf, ft, ff = naive_gpu(df, df_flipped, df_T, df_T_flipped, args.num_blocks)
     else:
-        tt, tf, ft, ff = naive_cpu_sym(df.values, df_flipped.values)
+        tt, tf, ft, ff = naive_cpu_sym(df.values)
     return naivecount2matrix(tt, tf, ft, ff, list(df.columns))
 
 
