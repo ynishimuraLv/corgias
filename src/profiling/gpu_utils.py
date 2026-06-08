@@ -11,6 +11,14 @@ try:
         else:
             return cp.int64
 
+    def _gpu_syrk(a: cp.ndarray, trans: str) -> cp.ndarray:
+        """Upper triangle of A.T@A (trans='T') or A@A.T (trans='N') via cuBLAS ssyrk.
+        Falls back to cp.dot when ssyrk is unavailable (older CuPy)."""
+        try:
+            return cp.cublas.ssyrk('U', trans, 1.0, a)
+        except AttributeError:
+            return cp.dot(a.T, a) if trans == 'T' else cp.dot(a, a.T)
+
     def block_dot(df1: cp.ndarray, df2: cp.ndarray, block_size: int):
             M, K = df1.shape
             _, N = df2.shape
@@ -30,6 +38,7 @@ except ImportError:
     cp = None
     block_dot = None
     _gpu_dtype = None
+    _gpu_syrk = None
     CUPY_AVAILABLE = False
     
 

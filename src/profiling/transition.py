@@ -8,7 +8,7 @@ from numpy.typing import NDArray
 from tqdm import tqdm
 from .common import load_og_table, flatten_indices, list_asr_trees, uppermatrix2vector, log_secondary_mode, pastml_attr
 from scipy.linalg.blas import dsyrk as _dsyrk
-from .gpu_utils import cp, block_dot, _gpu_dtype
+from .gpu_utils import cp, block_dot, _gpu_dtype, _gpu_syrk
 
 logger = logging.getLogger(__name__)
 
@@ -70,11 +70,12 @@ def calculate_k(df: np.ndarray, df_T: np.ndarray,
                 gpu: bool = False, num_blocks: int = 0,
                 symmetric: bool = False) -> NDArray:
     if gpu:
-        if num_blocks == 0:
+        if symmetric and num_blocks == 0:
+            k = cp.asnumpy(_gpu_syrk(cp.asarray(df, dtype=cp.float32), 'N'))
+        elif num_blocks == 0:
             dtype = _gpu_dtype(df.shape[1])
-            df = cp.asarray(df, dtype=dtype)
-            df_T = cp.asarray(df_T, dtype=dtype)
-            k = cp.asnumpy(cp.dot(df, df_T))
+            k = cp.asnumpy(cp.dot(cp.asarray(df, dtype=dtype),
+                                   cp.asarray(df_T, dtype=dtype)))
         else:
             block_size = df.shape[0] // num_blocks
             k = block_dot(df, df_T, block_size)

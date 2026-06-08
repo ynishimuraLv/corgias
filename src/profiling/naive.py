@@ -8,7 +8,7 @@ from multiprocessing import Pool
 from scipy.linalg.blas import dsyrk as _dsyrk
 
 from .common import load_og_table, uppermatrix2vector, flatten_indices, log_secondary_mode
-from .gpu_utils import cp, block_dot, _gpu_dtype
+from .gpu_utils import cp, block_dot, _gpu_dtype, _gpu_syrk
 
 logger = logging.getLogger(__name__)
 
@@ -73,28 +73,27 @@ def prepare_matrices(df: pd.DataFrame
     return df_flipped, df_T, df_T_flipped
 
 
-def naive_gpu(df: pd.DataFrame, df_flipped: pd.DataFrame, df_T: pd.DataFrame, 
-                  df_T_flipped: pd.DataFrame, num_blocks: int = 0
-                 ) -> tuple[NDArray[np.int64], NDArray[np.int64],
-                         NDArray[np.int64], NDArray[np.int64]]:
-    
-    dtype = _gpu_dtype(df.shape[0])
-    df = cp.asarray(df, dtype=dtype)
-    df_T = cp.asarray(df_T, dtype=dtype)
-    df_flipped = cp.asarray(df_flipped, dtype=dtype)
-    df_T_flipped = cp.asarray(df_T_flipped, dtype=dtype)
+def naive_gpu(df: pd.DataFrame, df_flipped: pd.DataFrame, df_T: pd.DataFrame,
+              df_T_flipped: pd.DataFrame, num_blocks: int = 0
+              ) -> tuple[NDArray, NDArray, NDArray, NDArray]:
     if num_blocks == 0:
-        tt = cp.asnumpy(cp.dot(df_T, df))
-        tf = cp.asnumpy(cp.dot(df_T, df_flipped))
-        ft = cp.asnumpy(cp.dot(df_T_flipped, df))
-        ff = cp.asnumpy(cp.dot(df_T_flipped, df_flipped))
+        a = cp.asarray(df, dtype=cp.float32)
+        b = cp.asarray(df_flipped, dtype=cp.float32)
+        tt = cp.asnumpy(_gpu_syrk(a, 'T'))       # upper tri of A.T @ A
+        ff = cp.asnumpy(_gpu_syrk(b, 'T'))       # upper tri of B.T @ B
+        tf = cp.asnumpy(cp.dot(a.T, b))          # A.T @ B, full matrix
+        ft = tf.T                                 # B.T @ A = tf.T, free
     else:
-        block_size = df_T.shape[0] // num_blocks
-        tt = block_dot(df_T, df, block_size)
-        tf = block_dot(df_T, df_flipped, block_size)
-        ft = block_dot(df_T_flipped, df, block_size)
-        ff = block_dot(df_T_flipped, df_flipped, block_size)
-
+        dtype = _gpu_dtype(df.shape[0])
+        df_cp   = cp.asarray(df,           dtype=dtype)
+        df_T_cp = cp.asarray(df_T,         dtype=dtype)
+        df_fl   = cp.asarray(df_flipped,   dtype=dtype)
+        df_Tf   = cp.asarray(df_T_flipped, dtype=dtype)
+        block_size = df_T_cp.shape[0] // num_blocks
+        tt = block_dot(df_T_cp, df_cp,  block_size)
+        tf = block_dot(df_T_cp, df_fl,  block_size)
+        ft = block_dot(df_Tf,   df_cp,  block_size)
+        ff = block_dot(df_Tf,   df_fl,  block_size)
     return tt, tf, ft, ff
 
 
