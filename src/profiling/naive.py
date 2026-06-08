@@ -5,6 +5,7 @@ import pandas as pd
 import polars as pl
 from numpy.typing import NDArray
 from multiprocessing import Pool
+from scipy.linalg.blas import dsyrk as _dsyrk
 
 from .common import load_og_table, uppermatrix2vector, flatten_indices, log_secondary_mode
 from .gpu_utils import cp, block_dot, _gpu_dtype
@@ -49,8 +50,10 @@ def run_naive(args):
     logger.info(f"Computing co-/anti-occurrence matrix on {backend}.")
     if args.gpu:
         tt, tf, ft, ff = naive_gpu(df, df_flipped, df_T, df_T_flipped, args.num_blocks)
-    else:
+    elif args.query:
         tt, tf, ft, ff = naive_cpu(df, df_flipped, df_T, df_T_flipped, args.cores)
+    else:
+        tt, tf, ft, ff = naive_cpu_sym(df.values, df_flipped.values)
 
     og_names = list(df_T.index)
     if args.query:
@@ -95,15 +98,31 @@ def naive_gpu(df: pd.DataFrame, df_flipped: pd.DataFrame, df_T: pd.DataFrame,
     return tt, tf, ft, ff
 
 
-def naive_cpu(df: pd.DataFrame, df_flipped: pd.DataFrame, df_T: pd.DataFrame, 
-                  df_T_flipped: pd.DataFrame, cores: int) -> tuple[int, int, int, int]:
-    jobs = [(df_T, df), (df_T, df_flipped),
-            (df_T_flipped, df), (df_T_flipped, df_flipped)]
+def naive_cpu_sym(df_vals: np.ndarray, df_flipped_vals: np.ndarray
+                  ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Symmetric all-vs-all: 2x dsyrk + 1x dgemm + transpose (no Pool needed)."""
+    a = df_vals.astype(np.float64)
+    b = df_flipped_vals.astype(np.float64)
+    tt = _dsyrk(1.0, a, trans=1, lower=0)   # upper tri of A.T @ A
+    ff = _dsyrk(1.0, b, trans=1, lower=0)   # upper tri of B.T @ B
+    tf = np.dot(a.T, b)                      # A.T @ B, full matrix needed
+    ft = tf.T                                # B.T @ A = (A.T @ B).T, free
+    return tt, tf, ft, ff
+
+
+def naive_cpu(df: pd.DataFrame, df_flipped: pd.DataFrame, df_T: pd.DataFrame,
+              df_T_flipped: pd.DataFrame, cores: int
+              ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """General CPU path (cross / query): float64 BLAS matmul with Pool."""
+    a  = np.asarray(df_T,         dtype=np.float64)
+    av = np.asarray(df,           dtype=np.float64)
+    af = np.asarray(df_T_flipped, dtype=np.float64)
+    bv = np.asarray(df_flipped,   dtype=np.float64)
+    jobs = [(a, av), (a, bv), (af, av), (af, bv)]
     if cores > 4:
         cores = 4
     with Pool(processes=cores) as process:
         tt, tf, ft, ff = process.starmap(np.dot, jobs)
-
     return tt, tf, ft, ff
 
 
@@ -112,7 +131,7 @@ def _naive_allvall(df: pd.DataFrame, args) -> pl.DataFrame:
     if args.gpu:
         tt, tf, ft, ff = naive_gpu(df, df_flipped, df_T, df_T_flipped, args.num_blocks)
     else:
-        tt, tf, ft, ff = naive_cpu(df, df_flipped, df_T, df_T_flipped, args.cores)
+        tt, tf, ft, ff = naive_cpu_sym(df.values, df_flipped.values)
     return naivecount2matrix(tt, tf, ft, ff, list(df.columns))
 
 

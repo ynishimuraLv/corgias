@@ -7,6 +7,7 @@ from multiprocessing import Pool
 from numpy.typing import NDArray
 from tqdm import tqdm
 from .common import load_og_table, flatten_indices, list_asr_trees, uppermatrix2vector, log_secondary_mode, pastml_attr
+from scipy.linalg.blas import dsyrk as _dsyrk
 from .gpu_utils import cp, block_dot, _gpu_dtype
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,7 @@ def run_cotr(args):
         backend = "GPU" if args.gpu else "CPU"
         logger.info(f"Computing transition matrix ({n1}x{n2} cross + {n2}x{n2}) on {backend}.")
         k_cross = calculate_k(t1, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)
-        k2     = calculate_k(t2, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)
+        k2     = calculate_k(t2, t2.T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=True)
         return pl.concat([
             transition_cross2df(k_cross, og_names1, og_names2, num_trans1, num_trans2, num_genomes),
             transition_count2df(k2, og_names2, num_trans2, None, num_genomes, args),
@@ -47,7 +48,7 @@ def run_cotr(args):
     og_names, t, t_T, num_transition, num_transition_query = prepare_matrix(count, args)
     backend = "GPU" if args.gpu else "CPU"
     logger.info(f"Computing transition matrix on {backend}.")
-    k = calculate_k(t, t_T, gpu=args.gpu, num_blocks=args.num_blocks)
+    k = calculate_k(t, t_T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=not args.query)
     return transition_count2df(k, og_names, num_transition, num_transition_query, num_genomes, args)
 
 
@@ -66,7 +67,8 @@ def count_transition(og:str, row: NDArray[np.int64]
 
 
 def calculate_k(df: np.ndarray, df_T: np.ndarray,
-                gpu: bool = False, num_blocks: int = 0) -> NDArray[np.int64]:
+                gpu: bool = False, num_blocks: int = 0,
+                symmetric: bool = False) -> NDArray:
     if gpu:
         if num_blocks == 0:
             dtype = _gpu_dtype(df.shape[1])
@@ -75,10 +77,12 @@ def calculate_k(df: np.ndarray, df_T: np.ndarray,
             k = cp.asnumpy(cp.dot(df, df_T))
         else:
             block_size = df.shape[0] // num_blocks
-            k = block_dot(df,df_T, block_size)
+            k = block_dot(df, df_T, block_size)
+    elif symmetric:
+        k = _dsyrk(1.0, df.astype(np.float64), trans=0, lower=0)
     else:
-        k = np.dot(df, df_T)
-
+        k = np.dot(df.astype(np.float64),
+                   df_T.astype(np.float64) if df_T.ndim > 1 else df_T)
     return k
 
 
@@ -134,7 +138,7 @@ def run_sev(args):
         backend = "GPU" if args.gpu else "CPU"
         logger.info(f"Computing transition matrix ({n1}x{n2} cross + {n2}x{n2}) on {backend}.")
         k_cross = calculate_k(t1, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)
-        k2 = calculate_k(t2, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)
+        k2 = calculate_k(t2, t2.T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=True)
         return pl.concat([
             transition_cross2df(k_cross, og_names1, og_names2, num_trans1, num_trans2, num_internal_nodes),
             transition_count2df(k2, og_names2, num_trans2, None, num_internal_nodes, args),
@@ -146,7 +150,7 @@ def run_sev(args):
     og_names, t, t_T, num_transition, num_transition_query = prepare_matrix(count, args)
     backend = "GPU" if args.gpu else "CPU"
     logger.info(f"Computing transition matrix on {backend}.")
-    k = calculate_k(t, t_T, gpu=args.gpu, num_blocks=args.num_blocks)
+    k = calculate_k(t, t_T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=not args.query)
     return transition_count2df(k, og_names, num_transition, num_transition_query, num_internal_nodes, args)
 
 
