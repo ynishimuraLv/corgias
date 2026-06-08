@@ -39,17 +39,14 @@ def run_naive(args):
     n = len(df.columns)
     num_pairs = n - 1 if args.query else math.comb(n, 2)
     logger.info(f"Processing {num_pairs} OG pairs.")
-    if args.gpu or args.query:
-        df_flipped, df_T, df_T_flipped = prepare_matrices(df)
-        if args.query:
-            idx = df.columns.get_loc(args.query)
-            df = df.loc[:, args.query]
-            df_T.drop(args.query, inplace=True)
-            df_flipped = df_flipped.iloc[:, idx]
-            df_T_flipped.drop(args.query, inplace=True)
-        og_names = list(df_T.index)
-    else:
-        og_names = list(df.columns)
+    df_flipped, df_T, df_T_flipped = prepare_matrices(df)
+    if args.query:
+        idx = df.columns.get_loc(args.query)
+        df = df.loc[:, args.query]
+        df_T.drop(args.query, inplace=True)
+        df_flipped = df_flipped.iloc[:, idx]
+        df_T_flipped.drop(args.query, inplace=True)
+    og_names = list(df_T.index)
     backend = "GPU" if args.gpu else "CPU"
     logger.info(f"Computing co-/anti-occurrence matrix on {backend}.")
     if args.gpu:
