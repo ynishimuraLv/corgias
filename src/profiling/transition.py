@@ -35,7 +35,7 @@ def run_cotr(args):
         log_secondary_mode(logger, n1, n2)
         backend = "GPU" if args.gpu else "CPU"
         logger.info(f"Computing transition matrix ({n1}x{n2} cross + {n2}x{n2}) on {backend}.")
-        k_cross = calculate_k(t1, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)
+        k_cross = calculate_k(t1, t2.T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=False)
         k2     = calculate_k(t2, t2.T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=True)
         return pl.concat([
             transition_cross2df(k_cross, og_names1, og_names2, num_trans1, num_trans2, num_genomes),
@@ -68,7 +68,9 @@ def count_transition(og:str, row: NDArray[np.int64]
 
 def calculate_k(df: np.ndarray, df_T: np.ndarray,
                 gpu: bool = False, num_blocks: int = 0,
-                symmetric: bool = False) -> NDArray:
+                symmetric: bool = True) -> NDArray:
+    if df_T.ndim == 1:
+        symmetric = False
     if gpu:
         if symmetric and num_blocks == 0:
             k = cp.asnumpy(_gpu_syrk(cp.asarray(df, dtype=cp.float32), 'N'))
