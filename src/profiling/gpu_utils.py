@@ -29,6 +29,7 @@ try:
 except ImportError:
     cp = None
     block_dot = None
+    _gpu_dtype = None
     CUPY_AVAILABLE = False
     
 
