@@ -36,7 +36,7 @@ def run_cotr(args):
         backend = "GPU" if args.gpu else "CPU"
         logger.info(f"Computing transition matrix ({n1}x{n2} cross + {n2}x{n2}) on {backend}.")
         k_cross = calculate_k(t1, t2.T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=False)
-        k2     = calculate_k(t2, t2.T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=True)
+        k2     = calculate_k(t2, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)
         return pl.concat([
             transition_cross2df(k_cross, og_names1, og_names2, num_trans1, num_trans2, num_genomes),
             transition_count2df(k2, og_names2, num_trans2, None, num_genomes, args),
@@ -48,7 +48,7 @@ def run_cotr(args):
     og_names, t, t_T, num_transition, num_transition_query = prepare_matrix(count, args)
     backend = "GPU" if args.gpu else "CPU"
     logger.info(f"Computing transition matrix on {backend}.")
-    k = calculate_k(t, t_T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=not args.query)
+    k = calculate_k(t, t_T, gpu=args.gpu, num_blocks=args.num_blocks)
     return transition_count2df(k, og_names, num_transition, num_transition_query, num_genomes, args)
 
 
@@ -153,7 +153,7 @@ def run_sev(args):
     og_names, t, t_T, num_transition, num_transition_query = prepare_matrix(count, args)
     backend = "GPU" if args.gpu else "CPU"
     logger.info(f"Computing transition matrix on {backend}.")
-    k = calculate_k(t, t_T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=not args.query)
+    k = calculate_k(t, t_T, gpu=args.gpu, num_blocks=args.num_blocks)
     return transition_count2df(k, og_names, num_transition, num_transition_query, num_internal_nodes, args)
 
 
