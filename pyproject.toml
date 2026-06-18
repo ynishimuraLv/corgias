@@ -1,15 +1,37 @@
 [project]
 name = "corgias"
 version = "0.1.0"
-description = "Add your description here"
+description = "Phylogenetic profiling tool for identifying co- and anti-correlated orthologs in large-scale prokaryotic genome datasets"
 readme = "README.md"
+license = { file = "LICENSE" }
 requires-python = ">=3.10"
+authors = [
+    { name = "Yuki Nishimura", email = "yuki-nishimura@g.ecc.u-tokyo.ac.jp" },
+]
+keywords = [
+    "phylogenetic profiling",
+    "bioinformatics",
+    "comparative genomics",
+    "orthologs",
+    "ancestral state reconstruction",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+]
 dependencies = [
     "ete3",
     "pastml",
     "polars>=1.26.0; platform_machine != 'arm64'",
     "polars-lts-cpu>=1.26.0; platform_machine == 'arm64'",
     "pyarrow>=19.0.1",
+    "scipy>=1.7.0",
     "statsmodels>=0.14.4",
     "tqdm>=4.0.0",
 ]
@@ -17,16 +39,18 @@ dependencies = [
 [project.optional-dependencies]
 gpu = ["cupy-cuda12x>=13.4.1", "nvidia-cublas-cu12>=12,<13"]
 
+[project.urls]
+Homepage = "https://github.com/ynishimuraLv/corgias"
+Repository = "https://github.com/ynishimuraLv/corgias"
+"Bug Tracker" = "https://github.com/ynishimuraLv/corgias/issues"
+Paper = "https://doi.org/10.1093/nargab/lqaf182"
+
+[project.scripts]
+corgias = "corgias.main:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.hatch.metadata]
-dynamic = ["name", "version"]
-
 [tool.hatch.build.targets.wheel]
-packages = ["src"]
-
-[project.scripts]
-corgias = "src.main:main"
-
+packages = ["corgias"]

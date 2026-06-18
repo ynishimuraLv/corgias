@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 import logging
 from pathlib import Path
-from src.logconfig import setup_logger
-import src.parser as parser
-from src.asr import run_asr
-from src.calstat import run_stat
-from src.profiling.runner import run_profiling
+from corgias.logconfig import setup_logger
+import corgias.parser as parser
+from corgias.asr import run_asr
+from corgias.calstat import run_stat
+from corgias.profiling.runner import run_profiling
 
 
 def main():
