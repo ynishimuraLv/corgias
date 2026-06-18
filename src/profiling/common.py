@@ -39,6 +39,7 @@ def load_og_table(path, query=None):
     df = pl.read_csv(path).to_pandas()
     index = df.columns[0]
     df.set_index(index, inplace=True)
+    logger.info(f"OG table: {len(df.columns)} OGs x {len(df.index)} genomes ({path})")
     if query:
         if query not in df.columns:
             logger.error(f"{query} is not found in the ortholog table")

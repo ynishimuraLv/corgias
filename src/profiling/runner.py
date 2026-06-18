@@ -40,6 +40,22 @@ def validate_args(args):
                          f'when using {args.method} method')
 
 
+def _log_params(args):
+    parts = [f"method={args.method}", f"output={args.output}", f"cores={args.cores}"]
+    for attr in ('og_table', 'og_table2', 'asr_folder', 'asr_folder2', 'tree', 'query'):
+        val = getattr(args, attr, None)
+        if val:
+            parts.append(f"{attr}={val}")
+    if getattr(args, 'gpu', False):
+        parts.append(f"gpu=True")
+        nb = getattr(args, 'num_blocks', 0)
+        if nb:
+            parts.append(f"num_blocks={nb}")
+    if getattr(args, 'test', 0):
+        parts.append(f"test={args.test}")
+    logger.info("Parameters: " + ", ".join(parts))
+
+
 def run_profiling(args, options):
     logger.info("Starting phylogenetic profiling")
     if not CUPY_AVAILABLE:
@@ -51,7 +67,7 @@ def run_profiling(args, options):
         logger.error(f"Invalid arguments: {e}")
         sys.exit(1)
 
+    _log_params(args)
     method_runner = METHOD_RUNNERS[args.method]
-    logger.info(f"Selected method: {args.method}")
     result = method_runner(args)
     result.write_csv(args.output)
