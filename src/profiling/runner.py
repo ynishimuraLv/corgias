@@ -69,5 +69,14 @@ def run_profiling(args, options):
 
     _log_params(args)
     method_runner = METHOD_RUNNERS[args.method]
-    result = method_runner(args)
+    try:
+        result = method_runner(args)
+    except MemoryError:
+        if getattr(args, 'gpu', False):
+            logger.error(
+                "GPU out of memory. Re-run with -nb/--num_blocks (e.g. -nb 4) "
+                "to split the computation into smaller blocks."
+            )
+            sys.exit(1)
+        raise
     result.write_csv(args.output)
