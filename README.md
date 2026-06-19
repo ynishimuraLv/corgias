@@ -21,8 +21,18 @@ CORGIAS is a phylogenetic profiling tool for a large-scale dataset comprising of
 | CuPy GPU acceleration | ✓ (NVIDIA GPU required) | ✗ |
 
 ## Installation
+
+### pip
 ```bash
-# Download
+# CPU-only
+pip install corgias
+
+# With GPU support (NVIDIA CUDA 12.x, Linux only)
+pip install corgias[gpu]
+```
+
+### From source
+```bash
 git clone https://github.com/ynishimuraLv/corgias.git
 cd corgias
 
