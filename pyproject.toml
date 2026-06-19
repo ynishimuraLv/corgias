@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Phylogenetic profiling tool for identifying co- and anti-correlated orthologs in large-scale prokaryotic genome datasets"
 readme = "README.md"
 license = { file = "LICENSE" }
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.13"
 authors = [
     { name = "Yuki Nishimura", email = "yuki-nishimura@g.ecc.u-tokyo.ac.jp" },
 ]
