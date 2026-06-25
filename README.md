@@ -22,6 +22,8 @@ CORGIAS is a phylogenetic profiling tool for a large-scale dataset comprising of
 
 ## Installation
 
+> **Note:** Python >=3.10, <3.13 is recommended. `ete3` is incompatible with Python 3.13+ (the `cgi` module was removed).
+
 ### pip
 ```bash
 # CPU-only
