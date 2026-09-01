@@ -10,6 +10,12 @@ def positive_int(value):
         raise argparse.ArgumentTypeError(f"{value} is not a valid positive integer")
     return ivalue
 
+def non_negative_int(value):
+    ivalue = int(value)
+    if ivalue < 0:
+        raise argparse.ArgumentTypeError(f"{value} is not a valid non-negative integer")
+    return ivalue
+
 def valid_float(value: str):
     fvalue = float(value)
     if not (0 < fvalue <= 1):
@@ -109,6 +115,12 @@ def parse_arguments():
                                       'hommel', 'fdr_bh', 'fdr_by', 'fdr_tsbh', 'fdr_tsbky'],
                              default='fdr_bh')
     stat_parser.add_argument('--only_signif', action='store_true', default=False)
+    stat_parser.add_argument('--min_k', type=non_negative_int, default=None,
+                             help='Minimum number of co-transition events (|k|) required to keep a pair '
+                                  '(cotr/sev only). Applied after multiple testing correction.')
+    stat_parser.add_argument('--min_phi', type=float, default=None,
+                             help='Minimum |phi| (effect size, independent of dataset size) required to '
+                                  'keep a pair. Applied after multiple testing correction.')
 
     args, options = parser.parse_known_args()
 

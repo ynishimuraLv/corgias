@@ -1,10 +1,24 @@
 import logging
+import math
 import polars as pl
 from multiprocessing import Pool
 from tqdm import tqdm
 
 from scipy import stats
 from statsmodels.stats.multitest import multipletests
+
+
+def phi_coefficient(a: float, b: float, c: float, d: float) -> float:
+    """Effect size (phi coefficient / Matthews correlation coefficient) for a 2x2 table [[a,b],[c,d]].
+
+    Unlike the p-value, phi does not shrink as the number of genomes/branches (N) grows,
+    so it stays comparable across pairs and datasets of very different sizes.
+    """
+    a, b, c, d = float(a), float(b), float(c), float(d)
+    denom = math.sqrt((a + b) * (a + c) * (b + d) * (c + d))
+    if denom == 0:
+        return 0.0
+    return (a * d - b * c) / denom
 
 
 def run_test4weighted(OG1: str, OG2: str, tt: float, tf: float,
@@ -14,8 +28,9 @@ def run_test4weighted(OG1: str, OG2: str, tt: float, tf: float,
          [ft, ff]],
          alternative = direction
     )
+    phi = phi_coefficient(tt, tf, ft, ff)
 
-    return OG1, OG2, odds, pvalue
+    return OG1, OG2, odds, phi, pvalue
 
 def run_test4transition(OG1: str, OG2: str, t1: int,
                         t2: int, k: int, n: int):
@@ -26,8 +41,11 @@ def run_test4transition(OG1: str, OG2: str, t1: int,
          [t2-k, n-t1-t2+k]],
          alternative='greater'
     )
+    phi = phi_coefficient(k, t1-k, t2-k, n-t1-t2+k)
+    if direction < 0:
+        phi = -phi
 
-    return OG1, OG2, direction, pvalue
+    return OG1, OG2, direction, phi, pvalue
 
 
 def _apply_weighted(row):
@@ -47,8 +65,9 @@ def _compute_pvalues(df: pl.DataFrame, method: str, direction: str,
                      cores: int, quiet: bool) -> pl.DataFrame:
     """Run Fisher's exact tests on a raw profiling DataFrame.
 
-    Returns a DataFrame with columns (OG1, OG2, odds, pvalue) for weighted
-    methods, or (OG1, OG2, direction, pvalue) for transition methods.
+    Returns a DataFrame with columns (OG1, OG2, odds, phi, pvalue) for weighted
+    methods, or (OG1, OG2, direction, phi, pvalue) for transition methods.
+    `phi` is the phi coefficient (effect size), independent of dataset size.
     """
     if method in WEIGHTED_METHODS:
         dir_map = {'correlation': 'greater', 'anti-correlation': 'less', 'both': 'two-sided'}
@@ -64,7 +83,7 @@ def _compute_pvalues(df: pl.DataFrame, method: str, direction: str,
                 for r in pool.imap(_apply_weighted, rows, chunksize=chunksize):
                     results.append(r)
                     pbar.update()
-        return pl.DataFrame(results, schema=['OG1', 'OG2', 'odds', 'pvalue'], orient='row')
+        return pl.DataFrame(results, schema=['OG1', 'OG2', 'odds', 'phi', 'pvalue'], orient='row')
 
     elif method in TRANSITION_METHODS:
         if direction == 'correlation':
@@ -81,7 +100,7 @@ def _compute_pvalues(df: pl.DataFrame, method: str, direction: str,
                 for r in pool.imap(_apply_transition, rows, chunksize=chunksize):
                     results.append(r)
                     pbar.update()
-        return pl.DataFrame(results, schema=['OG1', 'OG2', 'direction', 'pvalue'], orient='row')
+        return pl.DataFrame(results, schema=['OG1', 'OG2', 'direction', 'phi', 'pvalue'], orient='row')
 
 
 def run_stat(args, options):
@@ -114,6 +133,17 @@ def run_stat(args, options):
                             alpha=args.threthold)
     result = result.with_columns(pl.Series('qvalue', qvalues[1]),
                                     pl.Series('signif', qvalues[0]))
+
+    if args.min_k is not None:
+        if args.method not in TRANSITION_METHODS:
+            raise ValueError('--min_k only applies to transition methods (cotr, sev).')
+        logger.info(f'Filtering results to keep pairs with at least {args.min_k} co-transition events.')
+        result = result.filter(pl.col('direction').abs() >= args.min_k)
+
+    if args.min_phi is not None:
+        logger.info(f'Filtering results to keep pairs with |phi| >= {args.min_phi}.')
+        result = result.filter(pl.col('phi').abs() >= args.min_phi)
+
     if args.only_signif:
         logger.info('Filtering results to include only significant pairs.')
         result = result.filter(pl.col('signif'))
