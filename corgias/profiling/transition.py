@@ -157,24 +157,42 @@ def run_sev(args):
     return transition_count2df(k, og_names, num_transition, num_transition_query, num_internal_nodes, args)
 
 
+_PRIOR_ACTIVE = '_prior_active'
+
+
 def count_change(tree: et.TreeNode, og: str
-                 ) -> tuple[str, NDArray[np.int64], int]:
+                 ) -> tuple[str, NDArray[np.int64], int, list[int]]:
+    """Count state changes per branch, plus a per-internal-node 'active' flag.
+
+    A node's slot is active once its lineage has changed at least once since
+    the root (either the node itself is where the change happened, or an
+    ancestor already changed) — used to exclude clades where the OG never
+    gains or loses, so the stat test's n reflects only informative branches.
+    """
     tree = et.Tree(tree, format=1)
     transition = []
+    active = []
     attr = pastml_attr(og)
     for node in tree.traverse():
         if not node.is_leaf():
+            prior_active = getattr(node, _PRIOR_ACTIVE, False)
             parent_state = getattr(node, attr)
+            own_has_event = False
             for child in node.get_children():
                 child_state = getattr(child, attr)
                 try:
-                    transition.append(int(float(child_state)) - int(float(parent_state)))
+                    t = int(float(child_state)) - int(float(parent_state))
                 except ValueError:
-                    transition.append(0)
+                    t = 0
+                transition.append(t)
+                if t != 0:
+                    own_has_event = True
+                child.add_feature(_PRIOR_ACTIVE, prior_active or (t != 0))
+            active.append(int(prior_active or own_has_event))
 
     num_transition = np.count_nonzero(transition)
 
-    return og, transition, num_transition
+    return og, transition, num_transition, active
 
 
 def _count_transitions(df, args) -> list:
@@ -199,6 +217,42 @@ def _unpack_count(count: list) -> tuple[list, NDArray, NDArray]:
     t_matrix = np.vstack([c[1] for c in count])
     num_transitions = np.array([c[2] for c in count])
     return og_names, t_matrix, num_transitions
+
+
+def _unpack_active(count: list) -> NDArray:
+    """sev-only: stack the per-OG active-node flags built by count_change (count[3])."""
+    return np.vstack([c[3] for c in count]).astype(np.int8)
+
+
+def prepare_active_matrix(count, args) -> tuple[NDArray, NDArray]:
+    """sev-only counterpart of prepare_matrix, for the same `count` list/order."""
+    active_matrix = np.vstack([sublist[3] for sublist in count]).astype(np.int8)
+    if args.query:
+        active = active_matrix[1:]
+        active_T = active_matrix[0]
+    else:
+        active = active_matrix
+        active_T = active_matrix.T
+    return active, active_T
+
+
+def calculate_n_union(active: NDArray, active_T: NDArray,
+                      gpu: bool = False, num_blocks: int = 0,
+                      symmetric: bool = True) -> NDArray:
+    """Per-pair Fisher-test n: |active-node-set(OG1) UNION active-node-set(OG2)|.
+
+    n_eff(OG) is the count of active (informative) internal nodes for that OG.
+    n_intersect is the size of the shared active set, computed via the same
+    dot-product machinery used for k (calculate_k) applied to 0/1 vectors.
+    """
+    n_eff = active.sum(axis=1)
+    intersect = calculate_k(active, active_T, gpu=gpu, num_blocks=num_blocks, symmetric=symmetric)
+    if active_T.ndim == 1:
+        n_union = n_eff + active_T.sum() - intersect
+    else:
+        n_eff_other = active_T.sum(axis=0)
+        n_union = n_eff[:, None] + n_eff_other[None, :] - intersect
+    return n_union
 
 
 def transition_cross2df(k: NDArray, og_names1: list, og_names2: list,
