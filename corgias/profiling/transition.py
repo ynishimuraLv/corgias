@@ -89,12 +89,15 @@ def calculate_k(df: np.ndarray, df_T: np.ndarray,
     return k
 
 
-def transition_count2df(k: np.ndarray, og_names: list[str],  num_transition: np.ndarray, 
-                        num_transition_query: np.ndarray, N: int, args) -> pl.DataFrame:
+def transition_count2df(k: np.ndarray, og_names: list[str],  num_transition: np.ndarray,
+                        num_transition_query: np.ndarray, N, args) -> pl.DataFrame:
+    """N is either a scalar (dataset-wide constant, e.g. cotr or sev with --legacy_n)
+    or a per-pair array/matrix matching k's shape (sev's active-node-union n)."""
     if num_transition_query:
+        N_col = N.tolist() if isinstance(N, np.ndarray) else [N] * len(og_names)
         return pl.DataFrame({'OG1':[args.query]*len(og_names), 'OG2':og_names,
                              'num_change1':[num_transition_query]*len(og_names),
-                             'num_change2':num_transition.flatten(), 'k':k.astype(np.int64), 'N':[N]*len(og_names)})
+                             'num_change2':num_transition.flatten(), 'k':k.astype(np.int64), 'N':N_col})
     else:
         indices = flatten_indices(k)
         og_names = pl.DataFrame(og_names).with_row_count('index').select(
@@ -116,7 +119,11 @@ def transition_count2df(k: np.ndarray, og_names: list[str],  num_transition: np.
         k = uppermatrix2vector(k)
         k = pl.DataFrame({'k': k.astype(np.int64)})
         result = pl.concat([indices, k], how='horizontal')
-        df = result.with_columns(pl.lit(N, dtype=pl.Int64).alias('N'))
+        if isinstance(N, np.ndarray):
+            N_vec = uppermatrix2vector(N).astype(np.int64)
+            df = result.with_columns(pl.Series('N', N_vec))
+        else:
+            df = result.with_columns(pl.lit(N, dtype=pl.Int64).alias('N'))
 
     return df
 
@@ -142,9 +149,16 @@ def run_sev(args):
         logger.info(f"Computing transition matrix ({n1}x{n2} cross + {n2}x{n2}) on {backend}.")
         k_cross = calculate_k(t1, t2.T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=False)
         k2 = calculate_k(t2, t2.T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=True)
+        if args.legacy_n:
+            n_cross_arg, n2_arg = num_internal_nodes, num_internal_nodes
+        else:
+            active1 = _unpack_active(count1)
+            active2 = _unpack_active(count2)
+            n_cross_arg = calculate_n_union(active1, active2.T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=False)
+            n2_arg = calculate_n_union(active2, active2.T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=True)
         return pl.concat([
-            transition_cross2df(k_cross, og_names1, og_names2, num_trans1, num_trans2, num_internal_nodes),
-            transition_count2df(k2, og_names2, num_trans2, None, num_internal_nodes, args),
+            transition_cross2df(k_cross, og_names1, og_names2, num_trans1, num_trans2, n_cross_arg),
+            transition_count2df(k2, og_names2, num_trans2, None, n2_arg, args),
         ])
 
     n = len(trees)
@@ -154,7 +168,12 @@ def run_sev(args):
     backend = "GPU" if args.gpu else "CPU"
     logger.info(f"Computing transition matrix on {backend}.")
     k = calculate_k(t, t_T, gpu=args.gpu, num_blocks=args.num_blocks)
-    return transition_count2df(k, og_names, num_transition, num_transition_query, num_internal_nodes, args)
+    if args.legacy_n:
+        n_arg = num_internal_nodes
+    else:
+        active, active_T = prepare_active_matrix(count, args)
+        n_arg = calculate_n_union(active, active_T, gpu=args.gpu, num_blocks=args.num_blocks)
+    return transition_count2df(k, og_names, num_transition, num_transition_query, n_arg, args)
 
 
 _PRIOR_ACTIVE = '_prior_active'
@@ -256,16 +275,19 @@ def calculate_n_union(active: NDArray, active_T: NDArray,
 
 
 def transition_cross2df(k: NDArray, og_names1: list, og_names2: list,
-                        num_trans1: NDArray, num_trans2: NDArray, N: int) -> pl.DataFrame:
+                        num_trans1: NDArray, num_trans2: NDArray, N) -> pl.DataFrame:
+    """N is either a scalar (dataset-wide constant) or an (n1, n2) matrix matching
+    k's shape (sev's active-node-union n), flattened in the same C-order as k."""
     n1, n2 = len(og_names1), len(og_names2)
     OG1 = [og_names1[i] for i in range(n1) for _ in range(n2)]
     OG2 = og_names2 * n1
     nc1 = [int(num_trans1[i]) for i in range(n1) for _ in range(n2)]
     nc2 = [int(x) for x in num_trans2] * n1
+    N_col = N.flatten().astype(np.int64) if isinstance(N, np.ndarray) else [N] * len(OG1)
     return pl.DataFrame({'OG1': OG1, 'OG2': OG2,
                          'num_change1': nc1, 'num_change2': nc2,
                          'k': k.flatten().astype(np.int64),
-                         'N': [N] * len(OG1)},
+                         'N': N_col},
                         schema={'OG1': pl.Utf8, 'OG2': pl.Utf8,
                                 'num_change1': pl.Int64, 'num_change2': pl.Int64,
                                 'k': pl.Int64, 'N': pl.Int64})

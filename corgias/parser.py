@@ -97,6 +97,10 @@ def parse_arguments():
         profiling_parser.add_argument('-nb', '--num_blocks', type=positive_int, default=0)
     profiling_parser.add_argument('-q', '--query', default=None)
     profiling_parser.add_argument('--test', type=positive_int, default=0)
+    profiling_parser.add_argument('--legacy_n', action='store_true', default=False,
+                                  help='sev only: use the old dataset-wide constant N '
+                                       '(number of internal nodes) instead of the per-pair '
+                                       'active-node-union N. Ignored for other methods.')
 
     stat_parser = new_subparser(subparsers, 'stat', stat_description)
     stat_parser.add_argument('-i', '--input', required=True)
