@@ -140,7 +140,7 @@ def run_sev(args):
         log_secondary_mode(logger, n1, n2)
         backend = "GPU" if args.gpu else "CPU"
         logger.info(f"Computing transition matrix ({n1}x{n2} cross + {n2}x{n2}) on {backend}.")
-        k_cross = calculate_k(t1, t2.T, gpu=args.gpu, num_blocks=args.num_blocks)
+        k_cross = calculate_k(t1, t2.T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=False)
         k2 = calculate_k(t2, t2.T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=True)
         return pl.concat([
             transition_cross2df(k_cross, og_names1, og_names2, num_trans1, num_trans2, num_internal_nodes),
