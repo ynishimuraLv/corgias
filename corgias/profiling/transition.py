@@ -92,7 +92,7 @@ def calculate_k(df: np.ndarray, df_T: np.ndarray,
 def transition_count2df(k: np.ndarray, og_names: list[str],  num_transition: np.ndarray,
                         num_transition_query: np.ndarray, N, args) -> pl.DataFrame:
     """N is either a scalar (dataset-wide constant, e.g. cotr or sev with --legacy_n)
-    or a per-pair array/matrix matching k's shape (sev's active-node-union n)."""
+    or a per-pair array/matrix matching k's shape (sev's per-pair n from finalize_n)."""
     if num_transition_query:
         N_col = N.tolist() if isinstance(N, np.ndarray) else [N] * len(og_names)
         return pl.DataFrame({'OG1':[args.query]*len(og_names), 'OG2':og_names,
@@ -154,8 +154,11 @@ def run_sev(args):
         else:
             active1 = _unpack_active(count1)
             active2 = _unpack_active(count2)
-            n_cross_arg = calculate_n_union(active1, active2.T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=False)
-            n2_arg = calculate_n_union(active2, active2.T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=True)
+            n_cross = calculate_n_union(active1, active2.T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=False)
+            n2 = calculate_n_union(active2, active2.T, gpu=args.gpu, num_blocks=args.num_blocks, symmetric=True)
+            nt1, nt2 = np.asarray(num_trans1).reshape(-1, 1), np.asarray(num_trans2).reshape(-1, 1)
+            n_cross_arg = finalize_n(n_cross, k_cross, nt1, nt2.T, num_internal_nodes)
+            n2_arg = finalize_n(n2, k2, nt2, nt2.T, num_internal_nodes, symmetric=True)
         return pl.concat([
             transition_cross2df(k_cross, og_names1, og_names2, num_trans1, num_trans2, n_cross_arg),
             transition_count2df(k2, og_names2, num_trans2, None, n2_arg, args),
@@ -172,7 +175,12 @@ def run_sev(args):
         n_arg = num_internal_nodes
     else:
         active, active_T = prepare_active_matrix(count, args)
-        n_arg = calculate_n_union(active, active_T, gpu=args.gpu, num_blocks=args.num_blocks)
+        n_union = calculate_n_union(active, active_T, gpu=args.gpu, num_blocks=args.num_blocks)
+        nt = np.asarray(num_transition).reshape(-1)
+        if args.query:
+            n_arg = finalize_n(n_union, k, nt, num_transition_query, num_internal_nodes)
+        else:
+            n_arg = finalize_n(n_union, k, nt[:, None], nt[None, :], num_internal_nodes, symmetric=True)
     return transition_count2df(k, og_names, num_transition, num_transition_query, n_arg, args)
 
 
@@ -181,12 +189,13 @@ _PRIOR_ACTIVE = '_prior_active'
 
 def count_change(tree: et.TreeNode, og: str
                  ) -> tuple[str, NDArray[np.int64], int, list[int]]:
-    """Count state changes per branch, plus a per-internal-node 'active' flag.
+    """Count state changes per branch, plus a per-branch 'active' flag.
 
-    A node's slot is active once its lineage has changed at least once since
-    the root (either the node itself is where the change happened, or an
-    ancestor already changed) — used to exclude clades where the OG never
-    gains or loses, so the stat test's n reflects only informative branches.
+    A branch is active if the change happened on it or its lineage has already
+    changed at least once since the root — used to exclude clades where the OG
+    never gains or loses, so the stat test's n reflects only informative
+    branches. `active` is aligned with `transition` (one slot per branch), so
+    it is in the same unit as num_change and k.
     """
     tree = et.Tree(tree, format=1)
     transition = []
@@ -196,7 +205,6 @@ def count_change(tree: et.TreeNode, og: str
         if not node.is_leaf():
             prior_active = getattr(node, _PRIOR_ACTIVE, False)
             parent_state = getattr(node, attr)
-            own_has_event = False
             for child in node.get_children():
                 child_state = getattr(child, attr)
                 try:
@@ -204,10 +212,9 @@ def count_change(tree: et.TreeNode, og: str
                 except ValueError:
                     t = 0
                 transition.append(t)
-                if t != 0:
-                    own_has_event = True
-                child.add_feature(_PRIOR_ACTIVE, prior_active or (t != 0))
-            active.append(int(prior_active or own_has_event))
+                child_active = prior_active or (t != 0)
+                active.append(int(child_active))
+                child.add_feature(_PRIOR_ACTIVE, child_active)
 
     num_transition = np.count_nonzero(transition)
 
@@ -239,7 +246,7 @@ def _unpack_count(count: list) -> tuple[list, NDArray, NDArray]:
 
 
 def _unpack_active(count: list) -> NDArray:
-    """sev-only: stack the per-OG active-node flags built by count_change (count[3])."""
+    """sev-only: stack the per-OG active-branch flags built by count_change (count[3])."""
     return np.vstack([c[3] for c in count]).astype(np.int8)
 
 
@@ -258,9 +265,9 @@ def prepare_active_matrix(count, args) -> tuple[NDArray, NDArray]:
 def calculate_n_union(active: NDArray, active_T: NDArray,
                       gpu: bool = False, num_blocks: int = 0,
                       symmetric: bool = True) -> NDArray:
-    """Per-pair Fisher-test n: |active-node-set(OG1) UNION active-node-set(OG2)|.
+    """|active-branch-set(OG1) UNION active-branch-set(OG2)| for each pair.
 
-    n_eff(OG) is the count of active (informative) internal nodes for that OG.
+    n_eff(OG) is the count of active (informative) branches for that OG.
     n_intersect is the size of the shared active set, computed via the same
     dot-product machinery used for k (calculate_k) applied to 0/1 vectors.
     """
@@ -274,10 +281,32 @@ def calculate_n_union(active: NDArray, active_T: NDArray,
     return n_union
 
 
+def finalize_n(n_union: NDArray, k: NDArray, num_change1: NDArray, num_change2: NDArray,
+               num_internal_nodes: int, symmetric: bool = False) -> NDArray:
+    """Per-pair Fisher-test n for sev: min(active-branch union, number of internal nodes).
+
+    The branch-unit union keeps n in the same unit as num_change/k, and the cap
+    keeps n from exceeding the legacy N (under parsimony, num_change and |k| are
+    at most the number of internal nodes). As a guard, n is raised to
+    num_change1 + num_change2 - |k| where the 2x2 table would otherwise have a
+    negative cell. `num_change1`/`num_change2` must broadcast against `k`.
+    With symmetric=True only the upper triangle of `k` is meaningful (dsyrk output)
+    and only that part is counted in the warning.
+    """
+    n = np.minimum(n_union, num_internal_nodes)
+    lower = num_change1 + num_change2 - np.abs(k)
+    bad = lower > n
+    num_bad = int(np.triu(bad, 1).sum()) if symmetric else int(bad.sum())
+    if num_bad:
+        logger.warning(f'n was raised to num_change1 + num_change2 - |k| for {num_bad} pairs '
+                       'to keep the 2x2 table non-negative.')
+    return np.where(bad, lower, n).astype(np.int64)
+
+
 def transition_cross2df(k: NDArray, og_names1: list, og_names2: list,
                         num_trans1: NDArray, num_trans2: NDArray, N) -> pl.DataFrame:
     """N is either a scalar (dataset-wide constant) or an (n1, n2) matrix matching
-    k's shape (sev's active-node-union n), flattened in the same C-order as k."""
+    k's shape (sev's per-pair n from finalize_n), flattened in the same C-order as k."""
     n1, n2 = len(og_names1), len(og_names2)
     OG1 = [og_names1[i] for i in range(n1) for _ in range(n2)]
     OG2 = og_names2 * n1

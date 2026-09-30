@@ -109,7 +109,7 @@ corgias profiling -m sev -a primary_asr/ -a2 secondary_asr/ -t tree.nwk -o cross
 | `-q, --query COLUMN`    | Perform a specified column vs the others comparison.                       |
 | `-nb, --num_blocks NUM_BLOCKS` | Number of blocks for GPU computation.                               |
 | `--test TEST`           | Number of orthologs to process in test mode.
-| `--legacy_n`             | `sev` only: use the old dataset-wide constant N (number of internal nodes in the tree) instead of the per-pair active-node-union N (see Output below). Ignored for other methods. |
+| `--legacy_n`             | `sev` only: use the old dataset-wide constant N (number of internal nodes in the tree) instead of the per-pair active-branch-union N capped at that constant (see Output below). Ignored for other methods. |
 
 **Note:** `--gpu` and `--num_blocks` are available only when CORGIAS installed with `.[gpu]` and when selected methods is naive, cotr or sev.
 
@@ -137,7 +137,7 @@ Depending on the selected method, the output CSV file contains the following col
 - **OG1, OG2**: Ortholog pair IDs
 - **num_change1, numchnage2**: Number of presence/absence changes of OG1 and OG2
 - **k**: Number of concordance(positive)/discordance(negative) changes
-- **N**: For `cotr`, the number of genomes (constant across all pairs). For `sev` (default), a **per-pair** value: the union of the internal nodes where OG1 and/or OG2 has changed at least once since the root — this excludes clades where neither OG ever gains nor loses, so N shrinks for pairs confined to a small part of the tree instead of always equalling the full tree size. Pass `--legacy_n` at the `profiling` step to fall back to the old dataset-wide constant (number of internal nodes in the tree) for all pairs.
+- **N**: For `cotr`, the number of genomes (constant across all pairs). For `sev` (default), a **per-pair** value: the union of the branches where OG1 and/or OG2 has changed, or that lie below such a change (branches before the first change since the root are excluded), capped at the number of internal nodes in the tree: `N = min(|active branches of OG1 ∪ OG2|, number of internal nodes)`. Counting branches keeps N in the same unit as `num_change1`/`num_change2`/`k`, so the 2x2 table never has a negative cell; the cap keeps N from exceeding the legacy N. As a safety guard, N is raised to `num_change1 + num_change2 - |k|` if it would still fall below it (a warning is logged). Pass `--legacy_n` at the `profiling` step to fall back to the old dataset-wide constant (number of internal nodes in the tree) for all pairs.
 
 
 ## Statictical test

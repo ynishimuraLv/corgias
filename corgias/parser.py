@@ -100,7 +100,7 @@ def parse_arguments():
     profiling_parser.add_argument('--legacy_n', action='store_true', default=False,
                                   help='sev only: use the old dataset-wide constant N '
                                        '(number of internal nodes) instead of the per-pair '
-                                       'active-node-union N. Ignored for other methods.')
+                                       'active-branch-union N (capped at that constant). Ignored for other methods.')
 
     stat_parser = new_subparser(subparsers, 'stat', stat_description)
     stat_parser.add_argument('-i', '--input', required=True)
