@@ -186,12 +186,13 @@ corgias stat -i primary_stat.csv -i2 secondary_profiling.csv -m naive -o combine
 ### Output
 The output CSV file from the `stat` subcommand contains:
 
-| OG1   | OG2   | odds / direction | phi | pvalue | qvalue | signif |
-|-------|-------|------|-----|--------|--------|--------|
-| OG0001| OG0002| 2.5/10  | 0.42 | 0.01   | 0.02   | True   |
+| OG1   | OG2   | odds / direction | phi | pvalue | log10_pvalue | qvalue | signif |
+|-------|-------|------|-----|--------|--------------|--------|--------|
+| OG0001| OG0002| 2.5/10  | 0.42 | 0.01   | -2.0         | 0.02   | True   |
 
 - **odds / direction**: Odds ratio (weighted methods) / Difference of concordance and discordance changes (transtion methods)
 - **phi**: Phi coefficient (Matthews correlation coefficient), an effect size for the pair's 2×2 contingency table, in [-1, 1]. Unlike the p/q-value, it does not shrink as the dataset size (number of genomes or tree size) grows, so it stays comparable across pairs and datasets. With very large datasets, q-value alone can flag pairs with a negligible real association (q≈0 but phi≈0) — filtering on `--min_phi` in addition to q-value is recommended in that case.
 - **pvalue**: P-value from statistical test
+- **log10_pvalue**: log₁₀ of the p-value. With large datasets, `pvalue` (and `qvalue`) underflow to 0 for the strongest pairs (below about 1e-300); `log10_pvalue` is computed in log space there and stays finite, so it keeps ranking those pairs. Rows are sorted by this column (the same order as `qvalue`, with ties at 0 resolved).
 - **qvalue**: Adjusted p-value (multiple testing correction)
 - **signif**: Whether the result is significant (True/False)
